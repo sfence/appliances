@@ -800,16 +800,18 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
   minetest.register_node(self.node_name_inactive, node_def_inactive);
   minetest.register_node(self.node_name_active, node_def_active);
   
+  minetest.log("warning", dump(node_def_inactive));
+  
   if appliances.have_technic then
-    if node_def.groups.technic_lv then
+    if node_def_inactive.groups.technic_lv then
       technic.register_machine("LV", self.node_name_inactive, technic.receiver)
       technic.register_machine("LV", self.node_name_active, technic.receiver)
     end
-    if node_def.groups.technic_mv then
+    if node_def_inactive.groups.technic_mv then
       technic.register_machine("MV", self.node_name_inactive, technic.receiver)
       technic.register_machine("MV", self.node_name_active, technic.receiver)
     end
-    if node_def.groups.technic_hv then
+    if node_def_inactive.groups.technic_hv then
       technic.register_machine("HV", self.node_name_inactive, technic.receiver)
       technic.register_machine("HV", self.node_name_active, technic.receiver)
     end
