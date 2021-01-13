@@ -828,8 +828,6 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
   minetest.register_node(self.node_name_inactive, node_def_inactive);
   minetest.register_node(self.node_name_active, node_def_active);
   
-  minetest.log("warning", dump(node_def_inactive));
-  
   if appliances.have_technic then
     if node_def_inactive.groups.technic_lv then
       technic.register_machine("LV", self.node_name_inactive, technic.receiver)
