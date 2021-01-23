@@ -76,6 +76,7 @@ local power_data = {
 --]]
 
 appliance.power_data = nil; -- nil mean, power is not required
+appliance.meta_infotext = "infotext";
 
 if appliances.have_technic then
   function appliance:is_powered(meta)
@@ -193,7 +194,7 @@ local recipes = {
 -- recipes automatizations
 appliance.recipes = {
     inputs = {},
-    usages = {},
+    usages = nil,
   }
 
 
@@ -201,7 +202,9 @@ function appliance:recipe_register_input(input_name, input_def)
   self.recipes.inputs[input_name] = input_def;
 end
 function appliance:recipe_register_usage(usage_name, usage_def)
-  minetest.log("warning", "Registering usage")
+  if (not self.recipes.usages) then
+    self.recipes.usages = {};
+  end
   self.recipes.usages[usage_name] = usage_def;
 end
 
@@ -226,14 +229,14 @@ function appliance:recipe_aviable_input(inventory)
   end
   
   local usage = nil;
-  if #self.recipes.usages>0 then
+  if self.recipes.usages then
     usage = self.recipes.usages[usage_name];
     if (usage==nil) then
       return nil, nil
     end
   end
   
-  return input, usage;
+  return input, usage
 end
 
 function appliance:recipe_select_output(outputs)
@@ -435,6 +438,7 @@ function appliance:activate(pos, meta)
   if (not timer:is_started()) then
     timer:start(1)
     self:power_need(meta)
+	meta:set_string(self.meta_infotext, self.node_description.." - active")
   end
 end
 
@@ -443,18 +447,22 @@ function appliance:deactivate(pos, meta)
   self:update_formspec(meta, 0, 0, 0, 0)
   appliances.swap_node(pos, self.node_name_inactive);
   self:power_idle(meta)
+	meta:set_string(self.meta_infotext, self.node_description.." - idle")
 end
 function appliance:running(pos, meta)
   appliances.swap_node(pos, self.node_name_active);
   self:power_need(meta)
+	meta:set_string(self.meta_infotext, self.node_description.." - producting")
 end
 function appliance:waiting(pos, meta)
   appliances.swap_node(pos, self.node_name_inactive);
   self:power_idle(meta)
+	meta:set_string(self.meta_infotext, self.node_description.." - waiting")
 end
 function appliance:no_power(pos, meta)
   appliances.swap_node(pos, self.node_name_inactive);
   self:power_need(meta)
+  meta:set_string(self.meta_infotext, self.node_description.." - unpowered")
 end
 
 -- appliance node callbacks for mesecons
@@ -464,6 +472,7 @@ end
 function appliance:cb_mesecons_effector_action_off(pos, node)
   minetest.get_meta(pos):set_int("is_powered", 0);
 end
+
 -- appliance node callbacks for pipeworks
 function appliance:cb_tube_insert_object(pos, node, stack, direction, owner)
   local stack = appliance:tube_insert(pos, node, stack, direction, owner);
@@ -472,13 +481,20 @@ function appliance:cb_tube_insert_object(pos, node, stack, direction, owner)
   local inv = meta:get_inventory();
   local use_input, use_usage = appliance:recipe_aviable_input(inv)
   if use_input then
-    activate(pos, meta);
+    self:activate(pos, meta);
   end
   
   return stack;
 end
 function appliance:cb_tube_can_insert(pos, node, stack, direction, owner)
   return appliance:tube_can_insert(pos, node, stack, direction, owner);
+end
+
+-- appliance node callbacks for technic
+function appliance:cb_technic_run(pos, node)
+  local meta = minetest.get_meta(pos);
+  
+  meta:set_string("infotext", meta:get_string("technic_info"));
 end
 
 -- appliance node callbacks
@@ -549,8 +565,14 @@ function appliance:cb_on_timer(pos, elapsed)
   end
   
   -- time update
-  local production_step_size = self:recipe_step_size(use_usage.production_step_size*speed);
-  local consumption_step_size = self:recipe_step_size(speed*use_usage.consumption_step_size);
+  local production_step_size = 0;
+  local consumption_step_size = 0;
+  if self.recipes.usages then
+    production_step_size = self:recipe_step_size(use_usage.production_step_size*speed);
+    consumption_step_size = self:recipe_step_size(speed*use_input.consumption_step_size);
+  else
+    production_step_size = self:recipe_step_size(speed);
+  end
   
   production_time = production_time + production_step_size;
   consumption_time = consumption_time + consumption_step_size;
@@ -719,6 +741,12 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
   if technic_power then
     -- power connect (technic)
     node_def_inactive.connect_sides = {"back"};
+    
+    node_def_inactive.technic_run = function (pos, node)
+        self:cb_technic_run(pos, node);
+      end
+    
+    self.meta_infotext = "technic_info";
   end
   if mesecons_power then
     -- mesecon action
@@ -772,7 +800,7 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
       return self:cb_allow_metadata_inventory_put(pos, listname, index, stack, player);
     end
   node_def_inactive.allow_metadata_inventory_take = function (pos, listname, index, stack, player)
-      return self:cb_allow_metadata_inventory_put(pos, listname, index, stack, player);
+      return self:cb_allow_metadata_inventory_take(pos, listname, index, stack, player);
     end
   node_def_inactive.on_metadata_inventory_move = function (pos, from_list, from_index, to_list, to_index, count, player)
       return self.cb_on_metadata_inventory_move(pos, from_list, from_index, to_list, to_index, count, player);
@@ -799,8 +827,6 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
   
   minetest.register_node(self.node_name_inactive, node_def_inactive);
   minetest.register_node(self.node_name_active, node_def_active);
-  
-  minetest.log("warning", dump(node_def_inactive));
   
   if appliances.have_technic then
     if node_def_inactive.groups.technic_lv then
