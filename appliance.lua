@@ -17,8 +17,26 @@ function appliance:new(def)
   return def;
 end
 
+-- stacks
+appliance.input_stack = "input";
+appliance.input_stack_size = 1;
+appliance.use_stack = "use_in";
+appliance.use_stack_size = 1;
+appliance.output_stack = "output";
+appliance.output_stack_size = 4;
+
 -- is appliance connected to water?
+local pipe_connections = {
+  left = minetest.dir_to_facedir({x=0,y=0,z=-1}),
+  right = minetest.dir_to_facedir({x=0,y=0,z=1}),
+  top = nil,
+  bottom = nil,
+  front = minetest.dir_to_facedir({x=-1,y=0,z=0}),
+  back = minetest.dir_to_facedir({x=1,y=0,z=0}),
+}
+minetest.log("warning", dump(pipe_connections))
 appliance.need_water = false;
+appliance.pipe_side = "top"; -- right, left, front, back, bottom
 if appliances.have_pipeworks then
   local pipeworks_pipe_loaded = {
     ["pipeworks:pipe_1_loaded"] = true,
@@ -115,18 +133,33 @@ if appliances.have_technic then
           return eu_data.run_speed;
         end
       end
+      -- punch
+      local eu_data = self.power_data["punch"];
+      if (eu_data~=nil) then
+        local is_punched = meta:get_int("is_punched");
+        if (is_punched~=0) then
+          return eu_data.run_speed;
+        end
+      end
       return 0;
     end
 elseif appliances.have_mesecons then
   -- mesecon powered
   function appliance:is_powered(meta)
-      local is_powered = meta:get_int("is_powered");
-      if (is_powered~=0) then
-        local eu_data = self.power_data["no_technic"];
-        if (eu_data~=nil) then
+      local eu_data = self.power_data["no_technic"];
+      if (eu_data~=nil) then
+        local is_powered = meta:get_int("is_powered");
+        if (is_powered~=0) then
           return eu_data.run_speed;
         end
-        return 1;
+      end
+      -- punch
+      local eu_data = self.power_data["punch"];
+      if (eu_data~=nil) then
+        local is_punched = meta:get_int("is_punched");
+        if (is_punched~=0) then
+          return eu_data.run_speed;
+        end
       end
       return 0;
     end
@@ -137,7 +170,15 @@ else
       if (eu_data~=nil) then
         return eu_data.run_speed;
       end
-      return 1;
+      -- punch
+      local eu_data = self.power_data["punch"];
+      if (eu_data~=nil) then
+        local is_punched = meta:get_int("is_punched");
+        if (is_punched~=0) then
+          return eu_data.run_speed;
+        end
+      end
+      return 0;
     end
 end
 
@@ -196,10 +237,26 @@ appliance.recipes = {
     inputs = {},
     usages = nil,
   }
-
+appliance.have_input = true;
+appliance.have_usage = true;
+appliance.stoppable_usage = true;
 
 function appliance:recipe_register_input(input_name, input_def)
-  self.recipes.inputs[input_name] = input_def;
+  if (self.input_stack_size <= 1) then
+    self.recipes.inputs[input_name] = input_def;
+  else
+    local register = true;
+    for index, value in pairs(input_def.inputs) do
+      if ((index < 1) or ( index > self.input_stack_size)) then
+        minetest.log("error", "Input definition is not compatible with size of input stack: "..dump(input_def));
+        register = false;
+        break;
+      end
+    end
+    if register then
+      table.insert(self.recipes.inputs, input_def);
+    end
+  end
 end
 function appliance:recipe_register_usage(usage_name, usage_def)
   if (not self.recipes.usages) then
@@ -209,27 +266,60 @@ function appliance:recipe_register_usage(usage_name, usage_def)
 end
 
 function appliance:recipe_aviable_input(inventory)
-  local input_stack = inventory:get_stack("input", 1)
-  local input_name = input_stack:get_name();
-  local input = self.recipes.inputs[input_name];
-  if (input==nil) then
-    return nil, nil
-  end
-  if (input_stack:get_count()<input.inputs) then
-    return nil, nil
-  end
-  
-  local usage_stack = inventory:get_stack("use_in", 1)
-  local usage_name = usage_stack:get_name();
-  
-  if (input.require_usage~=nil) then
-    if (not input.require_usage[usage_name]) then
+  local input = nil;
+  if (self.input_stack_size <= 1) then
+    local input_stack = inventory:get_stack(self.input_stack, 1)
+    local input_name = input_stack:get_name();
+    input = self.recipes.inputs[input_name];
+    if (input==nil) then
       return nil, nil
+    end
+    if (input_stack:get_count()<input.inputs) then
+      return nil, nil
+    end
+  else
+    for index, check in pairs(self.recipes.inputs) do
+      local valid = true;
+      for ch_i, ch_val in pairs(check.inputs) do
+        local input_stack = inventory:get_stack(self.input_stack, ch_i);
+        local check_stack = ItemStack(ch_val);
+        if (input_stack:get_name()~=check_stack:get_name())  then
+          valid = false;
+          break;
+        end
+        if (input_stack:get_count() < check_stack:get_count()) then
+          valid = false;
+          break;
+        end
+      end
+      if valid then
+        input = check;
+        break;
+      end
+    end
+    
+    if (input == nil) then
+      return nil, nil
+    end
+  end
+  
+  local usage_name = nil;
+  if (self.use_stack) then
+    local usage_stack = inventory:get_stack(self.use_stack, 1)
+    usage_name = usage_stack:get_name();
+    
+    if (input.require_usage~=nil) then
+      if (not input.require_usage[usage_name]) then
+        return nil, nil
+      end
     end
   end
   
   local usage = nil;
   if self.recipes.usages then
+    if (usage_name==nil) then
+      return nil, nil
+    end
     usage = self.recipes.usages[usage_name];
     if (usage==nil) then
       return nil, nil
@@ -256,17 +346,17 @@ end
 
 function appliance:recipe_room_for_output(inventory, output)
   if #output>1 then
-    local inv_list = table.copy(inventory:get_list("output"));
+    local inv_list = table.copy(inventory:get_list(self.output_stack));
     for index = 1,#output do
-      if (inventory:room_for_item("output", output[index])~=true) then
-        inventory:set_list("output", inv_list);
+      if (inventory:room_for_item(self.output_stack, output[index])~=true) then
+        inventory:set_list(self.output_stack, inv_list);
         return false;
       end
-      inventory:add_item("output", output[index]);
+      inventory:add_item(self.output_stack, output[index]);
     end
-    inventory:set_list("output", inv_list);
+    inventory:set_list(self.output_stack, inv_list);
   else
-    if (inventory:room_for_item("output", output[1])~=true) then
+    if (inventory:room_for_item(self.output_stack, output[1])~=true) then
       return false;
     end
   end
@@ -276,20 +366,31 @@ end
 
 function appliance:recipe_output_to_stack(inventory, output)
   for index = 1,#output do
-    inventory:add_item("output", output[index]);
+    inventory:add_item(self.output_stack, output[index]);
   end
 end
 
 function appliance:recipe_input_from_stack(inventory, input)
-  local remove_stack = inventory:get_stack("input", 1);
-  remove_stack:set_count(input.inputs);
-  inventory:remove_item("input", remove_stack);
+  if (self.input_stack_size <= 1) then
+    local remove_stack = inventory:get_stack(self.input_stack, 1);
+    remove_stack:set_count(input.inputs);
+    inventory:remove_item(self.input_stack, remove_stack);
+  else
+    for rem_i, rem_val in pairs(input.inputs) do
+      local remove_stack = inventory:get_stack(self.input_stack, rem_i);
+      local item_stack = ItemStack(rem_val);
+      if (item_stack:get_count()>0) then
+        remove_stack:take_item(item_stack:get_count());
+        inventory:set_stack(self.input_stack, rem_i, remove_stack);
+      end
+    end
+  end
 end
 
 function appliance:recipe_usage_from_stack(inventory, usage)
-  local remove_stack = inventory:get_stack("use_in", 1);
+  local remove_stack = inventory:get_stack(self.use_stack, 1);
   remove_stack:set_count(1);
-  inventory:remove_item("use_in", remove_stack);
+  inventory:remove_item(self.use_stack, remove_stack);
 end
 
 function appliance:recipe_step_size(step_size)
@@ -310,11 +411,40 @@ function appliance:recipe_inventory_can_put(pos, listname, index, stack, player,
     end
   end
   
-  if listname == "input" then
-    return self.recipes.inputs[stack:get_name()] and
-                 stack:get_count() or 0
+  if listname == self.input_stack then
+    if (self.input_stack_size <= 1) then
+      return self.recipes.inputs[stack:get_name()] and
+                  stack:get_count() or 0
+    else
+      local meta = minetest.get_meta(pos);
+      local inventory = meta:get_inventory();
+      
+      for i, check in pairs(self.recipes.inputs) do
+        local valid = true;
+        for ch_i, ch_val in pairs(check.inputs) do
+          local input_stack = inventory:get_stack(self.input_stack, ch_i);
+          local input_name = input_stack:get_name();
+          local check_stack = ItemStack(ch_val);
+          if ((input_name~="") and (input_name~=check_stack:get_name())) then
+            valid = false;
+            break;
+          end
+        end
+        if valid then
+          local check_stack = check.inputs[index];
+          if check_stack then
+            check_stack = ItemStack(check_stack);
+            if (stack:get_name()==check_stack:get_name()) then
+              return stack:get_count();
+            end
+          end
+        end
+      end
+      
+      return 0;
+    end
   end
-  if listname == "use_in" then
+  if listname == self.use_stack then
     return self.recipes.usages[stack:get_name()] and
                  stack:get_count() or 0
   end
@@ -329,7 +459,7 @@ function appliance:recipe_inventory_can_take(pos, listname, index, stack, player
   end
   local count = stack:get_count();
   local meta = minetest.get_meta(pos);
-  if (listname=="input") then
+  if (listname==self.input_stack) then
     local production_time = meta:get_int("production_time") or 0
     if (production_time>0) then
       local input = self.recipes.inputs[stack:get_name()];
@@ -340,7 +470,7 @@ function appliance:recipe_inventory_can_take(pos, listname, index, stack, player
         minetest.log("error", "Input item missing in recipes list.")
       end
     end
-  elseif (listname=="use_in") then
+  elseif (listname==self.use_stack) then
     local consumption_time = meta:get_int("consumption_time") or 0
     if (consumption_time>0) then
       count = count - 1;
@@ -356,11 +486,11 @@ function appliance:tube_can_insert (pos, node, stack, direction, owner)
   if self.recipes then
     local input = self.recipes.inputs[stack:get_name()];
     if input then
-      return appliances.recipe_inventory_can_put(pos, "input", 1, stack, nil, recipes);
+      return appliances.recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil, recipes);
     end
     local usage = self.recipes.usages[stack:get_name()];
     if usage then
-      return appliances.recipe_inventory_can_put(pos, "use_in", 1, stack, nil, recipes);
+      return appliances.recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil, recipes);
     end
   end
   return false;
@@ -372,11 +502,11 @@ function appliance:tube_insert (pos, node, stack, direction, owner)
     
     local input = self.recipes.inputs[stack:get_name()];
     if input then
-      return inv:add_item("input", stack);
+      return inv:add_item(self.input_stack, stack);
     end
     local usages = self.recipes.usages[stack:get_name()];
     if usages then
-      return inv:add_item("use_in", stack);
+      return inv:add_item(self.use_stack, stack);
     end
   end
   
@@ -387,7 +517,7 @@ end
 
 -- form spec
 
-function appliance:get_formspec(production_percent, consumption_percent)
+function appliance:get_formspec(meta, production_percent, consumption_percent)
   local progress = "image[3.6,0.5;5.5,0.95;appliances_production_progress_bar.png^[transformR270]]";
   if production_percent then
     progress = "image[3.6,0.5;5.5,0.95;appliances_production_progress_bar.png^[lowpart:" ..
@@ -406,15 +536,15 @@ function appliance:get_formspec(production_percent, consumption_percent)
                     "background[-1.25,-1.25;15,10;appliances_appliance_formspec.png]" ..
                     progress..
                     "list[current_player;main;1.5,3;8,4;]" ..
-                    "list[context;input;2,0.25;1,1;]" ..
-                    "list[context;use_in;2,1.5;1,1;]" ..
-                    "list[context;output;9.75,0.25;2,2;]" ..
+                    "list[context;"..self.input_stack..";2,0.25;1,1;]" ..
+                    "list[context;"..self.use_stack..";2,1.5;1,1;]" ..
+                    "list[context;"..self.output_stack..";9.75,0.25;2,2;]" ..
                     "listring[current_player;main]" ..
-                    "listring[context;input]" ..
+                    "listring[context;"..self.input_stack.."]" ..
                     "listring[current_player;main]" ..
-                    "listring[context;use_in]" ..
+                    "listring[context;"..self.use_stack.."]" ..
                     "listring[current_player;main]" ..
-                    "listring[context;output]" ..
+                    "listring[context;"..self.output_stack.."]" ..
                     "listring[current_player;main]";
   return formspec;
 end
@@ -428,7 +558,7 @@ function appliance:update_formspec(meta, production_time, production_goal, consu
   if (consumption_time and consumption_goal) then
     consumption_percent = math.floor(consumption_time / consumption_goal * 100);
   end
-  meta:set_string("formspec", self:get_formspec(production_percent, consumption_percent));
+  meta:set_string("formspec", self:get_formspec(meta, production_percent, consumption_percent));
 end
 
 -- Inactive/Active 
@@ -438,7 +568,7 @@ function appliance:activate(pos, meta)
   if (not timer:is_started()) then
     timer:start(1)
     self:power_need(meta)
-	meta:set_string(self.meta_infotext, self.node_description.." - active")
+	  meta:set_string(self.meta_infotext, self.node_description.." - active")
   end
 end
 
@@ -463,6 +593,40 @@ function appliance:no_power(pos, meta)
   appliances.swap_node(pos, self.node_name_inactive);
   self:power_need(meta)
   meta:set_string(self.meta_infotext, self.node_description.." - unpowered")
+end
+
+--
+function appliance:need_wait(pos, meta, inv)
+  -- have aviable production recipe?
+  local use_input, use_usage = self:recipe_aviable_input(inv);
+  if (use_input==nil) then
+    return use_input, use_usage, true;
+  end
+  
+  -- space for production outputs?
+  if (#use_input.outputs==1) then
+    local output = self:recipe_select_output(use_input.outputs);
+    if (not self:recipe_room_for_output(inv, output)) then
+      return use_input, use_usage, true;
+    end
+  end
+  
+  -- check for water pipe connection
+  if (self.need_water) then
+    if (self:have_water(pos)~=true) then
+      return use_input, use_usage, true;
+    end
+  end
+  
+  return use_input, use_usage, false;
+end
+function appliance:have_power(pos, meta, inv)
+  -- check if node is powered
+  local speed = self:is_powered(meta)
+  if (speed==0) then
+    return speed, false;
+  end
+  return speed, true;
 end
 
 -- appliance node callbacks for mesecons
@@ -499,31 +663,40 @@ end
 
 -- appliance node callbacks
 function appliance:cb_can_dig(pos)
-      local meta = minetest.get_meta(pos)
-      local inv = meta:get_inventory()
-      return inv:is_empty("input") and inv:is_empty("output")
-  end
+  local meta = minetest.get_meta(pos)
+  local inv = meta:get_inventory()
+  return inv:is_empty(self.input_stack) and inv:is_empty(self.output_stack)
+end
+
 function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
-    pipeworks.scan_for_pipe_objects(pos);
-    pipeworks.scan_for_tube_objects(pos);
-    
-    local stack = oldmetadata.inventory["use_in"][1];
-    local consumption_time = tonumber(oldmetadata.fields["consumption_time"] or "0");
-    if (consumption_time>0) then
-      stack:take_item(1);
-    end
-    minetest.item_drop(stack, digger, pos)
+  pipeworks.scan_for_pipe_objects(pos);
+  pipeworks.scan_for_tube_objects(pos);
+  
+  local stack = oldmetadata.inventory[self.use_stack][1];
+  local consumption_time = tonumber(oldmetadata.fields["consumption_time"] or "0");
+  if (consumption_time>0) then
+    stack:take_item(1);
   end
+  minetest.item_drop(stack, digger, pos)
+end
+      
+function appliance:cb_on_punch(pos, node, puncher, pointed_thing)
+  local eu_data = self.power_data["punch"];
+  if (eu_data~=nil) then
+    local meta = minetest.get_meta(pos);
+    meta:set_int("is_punched", 1);
+  end
+end
 
 function appliance:cb_on_blast(pos)
-    local drops = {}
-    default.get_inventory_drops(pos, "input", drops)
-    default.get_inventory_drops(pos, "use_in", drops)
-    default.get_inventory_drops(pos, "output", drops)
-    table.insert(drops, self.node_name_inactive)
-    minetest.remove_node(pos)
-    return drops
-  end
+  local drops = {}
+  default.get_inventory_drops(pos, self.input_stack, drops)
+  default.get_inventory_drops(pos, self.use_stack, drops)
+  default.get_inventory_drops(pos, self.output_stack, drops)
+  table.insert(drops, self.node_name_inactive)
+  minetest.remove_node(pos)
+  return drops
+end
 
 function appliance:cb_on_timer(pos, elapsed)
   local meta = minetest.get_meta(pos);
@@ -533,35 +706,21 @@ function appliance:cb_on_timer(pos, elapsed)
   local consumption_time = meta:get_int("consumption_time") or 0;
   local sound_time = meta:get_int("sound_time") or 0;
   
-  -- have aviable production recipe?
-  local use_input, use_usage = self:recipe_aviable_input(inv);
-  if (use_input==nil) then
+  local use_input, use_usage, need_wait = self:need_wait(pos, meta, inv);
+  if need_wait then
     self:waiting(pos, meta);
     return true;
   end
   
-  -- space for production outputs?
-  if (#use_input.outputs==1) then
-    local output = self:recipe_select_output(use_input.outputs);
-    if (not self:recipe_room_for_output(inv, output)) then
-      self:waiting(pos, meta);
-      return true;
-    end
-  end
-  
-  -- check for water pipe connection
-  if (self.need_water) then
-    if (self:have_water(pos)~=true) then
-      self:waiting(pos, meta);
-      return true;
-    end
-  end
-  
   -- check if node is powered
-  local speed = self:is_powered(meta)
-  if (speed==0) then
+  local speed, have_power = self:have_power(pos, meta, inv)
+  if (not have_power) then
     self:no_power(pos, meta);
     return true;
+  end
+  
+  if (self.power_data["punch"]~=nil) then
+    meta:set_int("is_punched", 0);
   end
   
   -- time update
@@ -578,16 +737,18 @@ function appliance:cb_on_timer(pos, elapsed)
   consumption_time = consumption_time + consumption_step_size;
   
   -- remove used item
-  if (consumption_time>=use_usage.consumption_time) then
-    local output = self:recipe_select_output(use_usage.outputs); 
-    if (not self:recipe_room_for_output(inv, output)) then
-      self:waiting(pos, meta);
-      return true;
+  if use_usage then
+    if (consumption_time>=use_usage.consumption_time) then
+      local output = self:recipe_select_output(use_usage.outputs); 
+      if (not self:recipe_room_for_output(inv, output)) then
+        self:waiting(pos, meta);
+        return true;
+      end
+      self:recipe_output_to_stack(inv, output);
+      self:recipe_usage_from_stack(inv, use_usage);
+      consumption_time = 0;
+      meta:set_int("consumption_time", 0);
     end
-    self:recipe_output_to_stack(inv, output);
-    self:recipe_usage_from_stack(inv, use_usage);
-    consumption_time = 0;
-    meta:set_int("consumption_time", 0);
   end
   
   -- production done
@@ -603,9 +764,14 @@ function appliance:cb_on_timer(pos, elapsed)
     meta:set_int("production_time", 0);
   end
   
-  self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
-  meta:set_int("production_time", production_time)
-  meta:set_int("consumption_time", consumption_time)
+  if use_usage then
+    self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
+    meta:set_int("production_time", production_time)
+    meta:set_int("consumption_time", consumption_time)
+  else
+    self:update_formspec(meta, production_time, use_input.production_time, 0, 1)
+    meta:set_int("production_time", production_time)
+  end
   
   -- have aviable production recipe?
   local use_input, use_usage = self:recipe_aviable_input(inv)
@@ -671,12 +837,23 @@ end
 
 function appliance:cb_on_construct(pos)
   local meta = minetest.get_meta(pos)
-  meta:set_string("formspec", self:get_formspec(0, 0))
+  meta:set_string("formspec", self:get_formspec(meta, 0, 0))
   meta:set_string("infotext", self.node_description)
   local inv = meta:get_inventory()
-  inv:set_size("input", 1)
-  inv:set_size("use_in", 1)
-  inv:set_size("output", 4)
+  
+  if self.input_stack_size>0 then
+    inv:set_size(self.input_stack, self.input_stack_size)
+  end
+  if self.use_stack_size>0 then
+    if inv:get_size(self.use_stack)==0 then
+      inv:set_size(self.use_stack, self.use_stack_size)
+    end
+  end
+  if self.output_stack_size>0 then
+    if inv:get_size(self.output_stack)==0 then
+      inv:set_size(self.output_stack, self.output_stack_size)
+    end
+  end
 end
     
 function appliance:cb_after_place_node(pos, placer, itemstack, pointed_thing)
@@ -690,16 +867,15 @@ function appliance:cb_after_place_node(pos, placer, itemstack, pointed_thing)
 end
 
 -- register appliance
-function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
+function appliance:register_nodes(shared_def, inactive_def, active_def)
   -- default connection of pipe on top
   -- default connection of tubes from sides
   -- default connection of power from back
   -- may be, late, this will be configurable
   
-  local node_def_inactive = table.copy(node_def);
+  local node_def_inactive = table.copy(shared_def);
   
   node_def_inactive.description = self.node_description;
-  node_def_inactive.tiles = inactive_tiles;
   
   local need_power = false;
   local technic_power = false;
@@ -764,7 +940,10 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
   end
   if self.need_water then
     -- pipe connect
-    node_def_inactive.pipe_connections = { top = true };
+    
+    node_def_inactive.pipe_connections = {}; 
+    node_def_inactive.pipe_connections[self.pipe_side] = true;
+    node_def_inactive.pipe_connections[self.pipe_side.."_param2"] = pipe_connections[self.pipe_side];
   end
   if appliances.have_pipeworks then
     node_def_inactive.groups.tubedevice = 1;
@@ -778,7 +957,7 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
             return self:cb_tube_can_insert(pos, node, stack, direction, owner);
           end,
         connect_sides = {left = 1, right = 1}, 
-        input_inventory = "output",
+        input_inventory = self.output_stack,
       };
   end
   node_def_inactive.can_dig = function (pos, player)
@@ -786,6 +965,9 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
     end
   node_def_inactive.after_dig_node = function (pos, oldnode, oldmetadata, digger)
       return self:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
+    end
+  node_def_inactive.on_punch = function (pos, node, puncher, pointed_thing)
+      return self:cb_on_punch(pos, node, puncher, pointed_thing);
     end
   node_def_inactive.on_blast = function (pos, intensity)
       return self:cb_on_blast(pos, intensity);
@@ -821,9 +1003,18 @@ function appliance:register_nodes(node_def, inactive_tiles, active_tiles)
       return self:cb_after_place_node(pos, placer, itemstack, pointed_thing);
     end
   
-  node_def_active.tiles = active_tiles;
-  
   node_def_active.groups.not_in_creative_inventory = 1;
+  
+  if inactive_def then
+    for key, value in pairs(inactive_def) do
+      node_def_inactive[key] = value;
+    end
+  end
+  if active_def then
+    for key, value in pairs(active_def) do
+      node_def_active[key] = value;
+    end
+  end
   
   minetest.register_node(self.node_name_inactive, node_def_inactive);
   minetest.register_node(self.node_name_active, node_def_active);

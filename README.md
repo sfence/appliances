@@ -4,13 +4,15 @@ See LICENSE for license information.
 
 Authors of source code
 ----------------------
-SFENCE (MIT)
+Copyright (c) 2021 SFENCE
+MIT - check LICENSE file
 
 Authors of media
 ----------------
-SFENCE (CC BY-SA 3.0):
-All textures not mentioned below.
+CC BY-SA 3.0 - check LICENSE file
 
+Copyright (c) 2021 SFENCE (CC BY-SA 3.0):
+All textures not mentioned below.
 
 Introduction
 ------------
