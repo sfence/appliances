@@ -25,6 +25,9 @@ appliance.use_stack_size = 1;
 appliance.output_stack = "output";
 appliance.output_stack_size = 4;
 
+--
+appliance.have_tubes = true;
+
 -- is appliance connected to water?
 local pipe_connections = {
   left = minetest.dir_to_facedir({x=0,y=0,z=-1}),
@@ -141,11 +144,25 @@ if appliances.have_technic then
           return eu_data.run_speed;
         end
       end
+      -- time only
+      local eu_data = self.power_data["time"];
+      if (eu_data~=nil) then
+        return eu_data.run_speed;
+      end
       return 0;
     end
 elseif appliances.have_mesecons then
   -- mesecon powered
   function appliance:is_powered(meta)
+      -- mesecon powered
+      local eu_data = self.power_data["mesecon"];
+      if (eu_data~=nil) then
+        local is_powered = meta:get_int("is_powered");
+        if (is_powered~=0) then
+          return eu_data.run_speed;
+        end
+      end
+      -- no technic
       local eu_data = self.power_data["no_technic"];
       if (eu_data~=nil) then
         local is_powered = meta:get_int("is_powered");
@@ -161,11 +178,17 @@ elseif appliances.have_mesecons then
           return eu_data.run_speed;
         end
       end
+      -- time only
+      local eu_data = self.power_data["time"];
+      if (eu_data~=nil) then
+        return eu_data.run_speed;
+      end
       return 0;
     end
 else
   -- no supported power mod is aviable
   function appliance:is_powered(meta)
+      -- no technic
       local eu_data = self.power_data["no_technic"];
       if (eu_data~=nil) then
         return eu_data.run_speed;
@@ -177,6 +200,11 @@ else
         if (is_punched~=0) then
           return eu_data.run_speed;
         end
+      end
+      -- time only
+      local eu_data = self.power_data["time"];
+      if (eu_data~=nil) then
+        return eu_data.run_speed;
       end
       return 0;
     end
@@ -332,7 +360,7 @@ end
 function appliance:recipe_select_output(outputs)
   local selection = {};
   if (#outputs>1) then
-    selection = outputs[appliances.random.next(1, #outputs)];
+    selection = outputs[appliances.random:next(1, #outputs)];
   else
     selection = outputs[1];
   end
@@ -518,32 +546,51 @@ end
 -- form spec
 
 function appliance:get_formspec(meta, production_percent, consumption_percent)
-  local progress = "image[3.6,0.5;5.5,0.95;appliances_production_progress_bar.png^[transformR270]]";
-  if production_percent then
-    progress = "image[3.6,0.5;5.5,0.95;appliances_production_progress_bar.png^[lowpart:" ..
-            (production_percent) ..
-            ":appliances_production_progress_bar_full.png^[transformR270]]";
-  end
-  if consumption_percent then
-    progress = progress.."image[3.6,1.35;5.5,0.95;appliances_consumption_progress_bar.png^[lowpart:" ..
-            (consumption_percent) ..
-            ":appliances_consumption_progress_bar_full.png^[transformR270]]";
+  local progress = "";
+  local input_list = "list[context;"..self.input_stack..";2,0.25;1,1;]";
+  local use_list = "list[context;"..self.use_stack..";2,1.5;1,1;]";
+  local use_listring = "listring[context;"..self.use_stack.."]" ..
+                        "listring[current_player;main]";
+  
+  if self.have_usage then
+    progress = "image[3.6,0.5;5.5,0.95;appliances_production_progress_bar.png^[transformR270]]";
+    if production_percent then
+      progress = "image[3.6,0.5;5.5,0.95;appliances_production_progress_bar.png^[lowpart:" ..
+              (production_percent) ..
+              ":appliances_production_progress_bar_full.png^[transformR270]]";
+    end
+    if consumption_percent then
+      progress = progress.."image[3.6,1.35;5.5,0.95;appliances_consumption_progress_bar.png^[lowpart:" ..
+              (consumption_percent) ..
+              ":appliances_consumption_progress_bar_full.png^[transformR270]]";
+    else
+      progress = progress.."image[3.6,1.35;5.5,0.95;appliances_consumption_progress_bar.png^[transformR270]]";
+    end
   else
-    progress = progress.."image[3.6,1.35;5.5,0.95;appliances_consumption_progress_bar.png^[transformR270]]";
+    progress = "image[3.6,0.9;5.5,0.95;appliances_production_progress_bar.png^[transformR270]]";
+    if production_percent then
+      progress = "image[3.6,0.9;5.5,0.95;appliances_production_progress_bar.png^[lowpart:" ..
+              (production_percent) ..
+              ":appliances_production_progress_bar_full.png^[transformR270]]";
+    end
+    
+    input_list = "list[context;"..self.input_stack..";2,0.8;1,1;]";
+    use_list = "";
+    use_listring = "";
   end
+  
   
   local formspec =  "formspec_version[3]" .. "size[12.75,8.5]" ..
                     "background[-1.25,-1.25;15,10;appliances_appliance_formspec.png]" ..
                     progress..
                     "list[current_player;main;1.5,3;8,4;]" ..
-                    "list[context;"..self.input_stack..";2,0.25;1,1;]" ..
-                    "list[context;"..self.use_stack..";2,1.5;1,1;]" ..
+                    input_list ..
+                    use_list ..
                     "list[context;"..self.output_stack..";9.75,0.25;2,2;]" ..
                     "listring[current_player;main]" ..
                     "listring[context;"..self.input_stack.."]" ..
                     "listring[current_player;main]" ..
-                    "listring[context;"..self.use_stack.."]" ..
-                    "listring[current_player;main]" ..
+                    use_listring ..
                     "listring[context;"..self.output_stack.."]" ..
                     "listring[current_player;main]";
   return formspec;
@@ -672,12 +719,14 @@ function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
   pipeworks.scan_for_pipe_objects(pos);
   pipeworks.scan_for_tube_objects(pos);
   
-  local stack = oldmetadata.inventory[self.use_stack][1];
-  local consumption_time = tonumber(oldmetadata.fields["consumption_time"] or "0");
-  if (consumption_time>0) then
-    stack:take_item(1);
+  if self.have_usage then
+    local stack = oldmetadata.inventory[self.use_stack][1];
+    local consumption_time = tonumber(oldmetadata.fields["consumption_time"] or "0");
+    if (consumption_time>0) then
+      stack:take_item(1);
+    end
+    minetest.item_drop(stack, digger, pos)
   end
-  minetest.item_drop(stack, digger, pos)
 end
       
 function appliance:cb_on_punch(pos, node, puncher, pointed_thing)
@@ -696,6 +745,21 @@ function appliance:cb_on_blast(pos)
   table.insert(drops, self.node_name_inactive)
   minetest.remove_node(pos)
   return drops
+end
+  
+function appliance:after_timer_step(pos, meta, inv, production_time)
+  local use_input, use_usage = self:recipe_aviable_input(inv)
+  if use_input then
+    self:running(pos, meta);
+    return true
+  else
+    if (production_time) then
+      self:waiting(pos, meta)
+    else
+      self:deactivate(pos, meta)
+    end
+    return false
+  end
 end
 
 function appliance:cb_on_timer(pos, elapsed)
@@ -774,18 +838,7 @@ function appliance:cb_on_timer(pos, elapsed)
   end
   
   -- have aviable production recipe?
-  local use_input, use_usage = self:recipe_aviable_input(inv)
-  if use_input then
-    self:running(pos, meta);
-    return true
-  else
-    if (production_time) then
-      self:waiting(pos, meta)
-    else
-      self:deactivate(pos, meta)
-    end
-    return false
-  end
+  return self:after_timer_step(pos, meta, inv, production_time);
 end
 
 function appliance:cb_allow_metadata_inventory_move(pos, from_list, from_index, to_list, to_index, count, player)
@@ -946,19 +999,21 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
     node_def_inactive.pipe_connections[self.pipe_side.."_param2"] = pipe_connections[self.pipe_side];
   end
   if appliances.have_pipeworks then
-    node_def_inactive.groups.tubedevice = 1;
-    node_def_inactive.groups.tubedevice_receiver = 1;
-    node_def_inactive.tube =
-      {
-        insert_object = function(pos, node, stack, direction, owner)
-          return self:cb_tube_insert_object(pos, node, stack, direction, owner);
-          end,
-        can_insert = function(pos, node, stack, direction, owner)
-            return self:cb_tube_can_insert(pos, node, stack, direction, owner);
-          end,
-        connect_sides = {left = 1, right = 1}, 
-        input_inventory = self.output_stack,
-      };
+    if self.have_tube then
+      node_def_inactive.groups.tubedevice = 1;
+      node_def_inactive.groups.tubedevice_receiver = 1;
+      node_def_inactive.tube =
+        {
+          insert_object = function(pos, node, stack, direction, owner)
+            return self:cb_tube_insert_object(pos, node, stack, direction, owner);
+            end,
+          can_insert = function(pos, node, stack, direction, owner)
+              return self:cb_tube_can_insert(pos, node, stack, direction, owner);
+            end,
+          connect_sides = {left = 1, right = 1}, 
+          input_inventory = self.output_stack,
+        };
+    end
   end
   node_def_inactive.can_dig = function (pos, player)
       return self:cb_can_dig(pos, player);
