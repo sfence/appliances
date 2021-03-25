@@ -929,6 +929,10 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   local node_def_inactive = table.copy(shared_def);
   
   node_def_inactive.description = self.node_description;
+  if (self.node_help) then
+    node_def_inactive.description = self.node_description.."\n"..self.node_help;
+  end
+  node_def_inactive.short_description = self.node_description;
   
   local need_power = false;
   local technic_power = false;
@@ -1090,4 +1094,61 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   end
   
 end
+
+-- register recipes to unified_inventory
+function appliance:register_recipes(inout_type, usage_type)
+  if appliances.have_unified then
+    if (self.input_stack_size<=1) then
+      for input, recipe in pairs(self.recipes.inputs) do
+        for _, outputs in pairs(recipe.outputs) do
+          if (type(outputs)=="table") then
+            outputs = outputs[1];
+          end
+          local item = ItemStack(input);
+          item:set_count(recipe.inputs);
+          unified_inventory.register_craft({
+              type = inout_type,
+              output = ItemStack(outputs):to_string(),
+              items = {item},
+            })
+        end
+      end
+    else
+      for input, recipe in pairs(self.recipes.inputs) do
+        for _, outputs in pairs(recipe.outputs) do
+          if (type(outputs)=="table") then
+            outputs = outputs[1];
+          end
+          local items = {};
+          for _, item in pairs(recipe.inputs) do
+            table.insert(items, ItemStack(item));
+          end
+          unified_inventory.register_craft({
+              type = inout_type,
+              output = ItemStack(outputs):to_string(),
+              items = items,
+            })
+        end
+      end
+    end
+    
+    if (self.have_usage) then
+      for input, usage in pairs(self.recipes.usages) do
+        for _, outputs in pairs(usage.outputs) do
+          if (type(outputs)=="table") then
+            outputs = outputs[1];
+          end
+          local item = ItemStack(input);
+          --unified_inventory.register_craft({
+          minetest.log("warning",dump({
+              type = usage_type,
+              output = ItemStack(outputs):to_string(),
+              items = {item},
+            }))
+        end
+      end
+    end
+  end
+end
+
 
