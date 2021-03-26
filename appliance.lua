@@ -1097,55 +1097,54 @@ end
 
 -- register recipes to unified_inventory
 function appliance:register_recipes(inout_type, usage_type)
-  if appliances.have_unified then
-    if (self.input_stack_size<=1) then
-      for input, recipe in pairs(self.recipes.inputs) do
-        for _, outputs in pairs(recipe.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
-          end
-          local item = ItemStack(input);
-          item:set_count(recipe.inputs);
-          unified_inventory.register_craft({
-              type = inout_type,
-              output = ItemStack(outputs):to_string(),
-              items = {item},
-            })
+  if (self.input_stack_size<=1) then
+    for input, recipe in pairs(self.recipes.inputs) do
+      for _, outputs in pairs(recipe.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
         end
-      end
-    else
-      for input, recipe in pairs(self.recipes.inputs) do
-        for _, outputs in pairs(recipe.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
-          end
-          local items = {};
-          for _, item in pairs(recipe.inputs) do
-            table.insert(items, ItemStack(item));
-          end
-          unified_inventory.register_craft({
-              type = inout_type,
-              output = ItemStack(outputs):to_string(),
-              items = items,
-            })
-        end
+        local item = ItemStack(input);
+        item:set_count(recipe.inputs);
+        appliances.register_craft({
+            type = inout_type,
+            output = ItemStack(outputs):to_string(),
+            items = {item:to_string()},
+          })
       end
     end
-    
-    if (self.have_usage) then
-      for input, usage in pairs(self.recipes.usages) do
-        for _, outputs in pairs(usage.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
-          end
-          local item = ItemStack(input);
-          --unified_inventory.register_craft({
-          minetest.log("warning",dump({
-              type = usage_type,
-              output = ItemStack(outputs):to_string(),
-              items = {item},
-            }))
+  else
+    for input, recipe in pairs(self.recipes.inputs) do
+      for _, outputs in pairs(recipe.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
         end
+        local items = {};
+        for _, item in pairs(recipe.inputs) do
+          table.insert(items, ItemStack(item):to_string());
+        end
+        appliances.register_craft({
+            type = inout_type,
+            output = ItemStack(outputs):to_string(),
+            items = items,
+            width = self.input_stack_width,
+          })
+      end
+    end
+  end
+  
+  if (self.have_usage) then
+    for input, usage in pairs(self.recipes.usages) do
+      for _, outputs in pairs(usage.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
+        end
+        local item = ItemStack(input);
+        --appliances.register_craft({
+        minetest.log("warning",dump({
+            type = usage_type,
+            output = ItemStack(outputs):to_string(),
+            items = {item},
+          }))
       end
     end
   end
