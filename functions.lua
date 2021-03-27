@@ -37,6 +37,14 @@ function appliances.register_craft_type(type_name, type_def)
         icon = type_def.icon,
       })
   end
+  if appliances.have_i3 then
+    minetest.register_on_mods_loaded(function()
+        i3.register_craft_type(type_name, {
+            description = type_def.description,
+            icon = type_def.icon,
+          })
+      end)
+  end
 end
 
 --
@@ -54,7 +62,7 @@ function appliances.register_craft(craft_def)
         items = craft_def.items,
       })
   end
-  if appliances.have_craftguide then
+  if appliances.have_craftguide or appliances.have_i3 then
     local items = craft_def.items;
     if craft_def.width then
       items = {};
@@ -73,12 +81,23 @@ function appliances.register_craft(craft_def)
         table.insert(items, line);
       end
     end
-
-    craftguide.register_craft({
-        type = craft_def.type,
-        result = craft_def.output,
-        items = items,
-      })
+    
+    if appliances.have_craftguide then
+      craftguide.register_craft({
+          type = craft_def.type,
+          result = craft_def.output,
+          items = items,
+        })
+    end
+    if appliances.have_i3 then
+      minetest.register_on_mods_loaded(function()
+          i3.register_craft({
+              type = craft_def.type,
+              result = craft_def.output,
+              items = items,
+            })
+        end)
+    end
   end
 end
   
