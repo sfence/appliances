@@ -716,8 +716,14 @@ function appliance:cb_can_dig(pos)
 end
 
 function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
-  pipeworks.scan_for_pipe_objects(pos);
-  pipeworks.scan_for_tube_objects(pos);
+  if appliances.have_pipeworks then
+    if self.need_water then
+      pipeworks.scan_for_pipe_objects(pos);
+    end
+    if self.have_tube then
+      pipeworks.scan_for_tube_objects(pos);
+    end
+  end
   
   if self.have_usage then
     local stack = oldmetadata.inventory[self.use_stack][1];
