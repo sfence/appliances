@@ -37,7 +37,6 @@ local pipe_connections = {
   front = minetest.dir_to_facedir({x=-1,y=0,z=0}),
   back = minetest.dir_to_facedir({x=1,y=0,z=0}),
 }
-minetest.log("warning", dump(pipe_connections))
 appliance.need_water = false;
 appliance.pipe_side = "top"; -- right, left, front, back, bottom
 if appliances.have_pipeworks then
@@ -267,7 +266,8 @@ appliance.recipes = {
   }
 appliance.have_input = true;
 appliance.have_usage = true;
-appliance.stoppable_usage = true;
+appliance.stoppable_production = true;
+appliance.stoppable_consumption = true;
 
 function appliance:recipe_register_input(input_name, input_def)
   if (self.input_stack_size <= 1) then
@@ -395,6 +395,22 @@ end
 function appliance:recipe_output_to_stack(inventory, output)
   for index = 1,#output do
     inventory:add_item(self.output_stack, output[index]);
+  end
+end
+
+function appliance:recipe_output_to_stack_or_drop(pos, inventory, output)
+  local drop_pos = nil;
+  for index = 1,#output do
+    local leftover = inventory:add_item(self.output_stack, output[index]);
+    if (leftover:get_count()>0) then
+      if (drop_pos==nil) then
+        drop_pos = minetest.find_node_near(pos, 1, "air");
+        if (drop_pos==nil) then
+          drop_pos = pos;
+        end
+      end
+      minetest.add_item(drop_pos, leftover);
+    end
   end
 end
 
@@ -752,7 +768,34 @@ function appliance:cb_on_blast(pos)
   minetest.remove_node(pos)
   return drops
 end
-  
+
+function appliance:interrupt_production(pos, meta, inv, use_input, production_time)
+  if (self.stoppable_production==false) then
+    if (production_time>0) then
+      if use_input.losts then
+        local output = self:recipe_select_output(use_input.losts);
+        self:recipe_output_to_stack_or_drop(pos, inv, output);
+        self:recipe_input_from_stack(inv, use_input);
+      end
+      meta:set_int("production_time", 0);
+    end
+  end
+end
+
+function appliance:interrupt_consumption(pos, meta, inv, use_usage, consumption_time)
+  if (self.stoppable_conmsuption==false) then
+    if (consumption_time>0) then
+      local output = self:recipe_select_output(use_usage.outputs); 
+      if use_usage.losts then
+        output = self:recipe_select_output(use_usage.losts);
+      end
+      self:recipe_output_to_stack_or_drop(pos, inv, output);
+      self:recipe_usage_from_stack(inv, use_usage);
+      meta:set_int("consumption_time", 0);
+    end
+  end
+end
+
 function appliance:after_timer_step(pos, meta, inv, production_time)
   local use_input, use_usage = self:recipe_aviable_input(inv)
   if use_input then
@@ -785,6 +828,8 @@ function appliance:cb_on_timer(pos, elapsed)
   -- check if node is powered
   local speed, have_power = self:have_power(pos, meta, inv)
   if (not have_power) then
+    self:interrupt_production(pos, meta, inv, use_input, production_time);
+    self:interrupt_consumption(pos, meta, inv, use_usage, consumption_time);
     self:no_power(pos, meta);
     return true;
   end
@@ -811,6 +856,8 @@ function appliance:cb_on_timer(pos, elapsed)
     if (consumption_time>=use_usage.consumption_time) then
       local output = self:recipe_select_output(use_usage.outputs); 
       if (not self:recipe_room_for_output(inv, output)) then
+        self:interrupt_production(pos, meta, inv, use_input, production_time);
+        self:interrupt_consumption(pos, meta, inv, use_usage, consumption_time);
         self:waiting(pos, meta);
         return true;
       end
