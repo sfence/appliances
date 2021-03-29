@@ -60,7 +60,7 @@ if appliances.have_pipeworks then
     ["pipeworks:straight_pipe_loaded"] = true,
   };
 
-  function appliance:have_water(appliance, pos)
+  function appliance:have_water(pos)
     local node = minetest.get_node({x=pos.x, y=pos.y+1, z=pos.z});
     if node then
       if (pipeworks_pipe_loaded[node.name]) then
@@ -897,7 +897,7 @@ end
 function appliance:cb_on_construct(pos)
   local meta = minetest.get_meta(pos)
   meta:set_string("formspec", self:get_formspec(meta, 0, 0))
-  meta:set_string("infotext", self.node_description)
+  meta:set_string(self.meta_infotext, self.node_description)
   local inv = meta:get_inventory()
   
   if self.input_stack_size>0 then
