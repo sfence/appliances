@@ -736,7 +736,7 @@ function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
     if self.need_water then
       pipeworks.scan_for_pipe_objects(pos);
     end
-    if self.have_tube then
+    if self.have_tubes then
       pipeworks.scan_for_tube_objects(pos);
     end
   end
@@ -769,21 +769,20 @@ function appliance:cb_on_blast(pos)
   return drops
 end
 
-function appliance:interrupt_production(pos, meta, inv, use_input, production_time)
+function appliance:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time)
   if (self.stoppable_production==false) then
     if (production_time>0) then
       if use_input.losts then
         local output = self:recipe_select_output(use_input.losts);
         self:recipe_output_to_stack_or_drop(pos, inv, output);
-        self:recipe_input_from_stack(inv, use_input);
       end
+      self:recipe_input_from_stack(inv, use_input);
       meta:set_int("production_time", 0);
+      production_time = 0;
     end
   end
-end
-
-function appliance:interrupt_consumption(pos, meta, inv, use_usage, consumption_time)
-  if (self.stoppable_conmsuption==false) then
+  
+  if (self.stoppable_consumption==false) then
     if (consumption_time>0) then
       local output = self:recipe_select_output(use_usage.outputs); 
       if use_usage.losts then
@@ -792,7 +791,14 @@ function appliance:interrupt_consumption(pos, meta, inv, use_usage, consumption_
       self:recipe_output_to_stack_or_drop(pos, inv, output);
       self:recipe_usage_from_stack(inv, use_usage);
       meta:set_int("consumption_time", 0);
+      consumption_time = 0;
     end
+  end
+      
+  if use_usage then
+    self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
+  else
+    self:update_formspec(meta, production_time, use_input.production_time, 0, 1)
   end
 end
 
@@ -828,8 +834,7 @@ function appliance:cb_on_timer(pos, elapsed)
   -- check if node is powered
   local speed, have_power = self:have_power(pos, meta, inv)
   if (not have_power) then
-    self:interrupt_production(pos, meta, inv, use_input, production_time);
-    self:interrupt_consumption(pos, meta, inv, use_usage, consumption_time);
+    self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
     self:no_power(pos, meta);
     return true;
   end
@@ -856,8 +861,7 @@ function appliance:cb_on_timer(pos, elapsed)
     if (consumption_time>=use_usage.consumption_time) then
       local output = self:recipe_select_output(use_usage.outputs); 
       if (not self:recipe_room_for_output(inv, output)) then
-        self:interrupt_production(pos, meta, inv, use_input, production_time);
-        self:interrupt_consumption(pos, meta, inv, use_usage, consumption_time);
+        self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
         self:waiting(pos, meta);
         return true;
       end
@@ -1056,7 +1060,7 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
     node_def_inactive.pipe_connections[self.pipe_side.."_param2"] = pipe_connections[self.pipe_side];
   end
   if appliances.have_pipeworks then
-    if self.have_tube then
+    if self.have_tubes then
       node_def_inactive.groups.tubedevice = 1;
       node_def_inactive.groups.tubedevice_receiver = 1;
       node_def_inactive.tube =
