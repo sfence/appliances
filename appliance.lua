@@ -37,7 +37,6 @@ local pipe_connections = {
   front = minetest.dir_to_facedir({x=-1,y=0,z=0}),
   back = minetest.dir_to_facedir({x=1,y=0,z=0}),
 }
-minetest.log("warning", dump(pipe_connections))
 appliance.need_water = false;
 appliance.pipe_side = "top"; -- right, left, front, back, bottom
 if appliances.have_pipeworks then
@@ -89,6 +88,9 @@ local power_data = {
   ["LV"] = {
       demand = 100,
       run_speed = 1,
+      -- list of power_data to disable if this one is aviable
+      -- used when power data is registered by function
+      disable = {},
     },
   ["no_technic"] = {
       run_speed = 1,
@@ -99,115 +101,92 @@ local power_data = {
 appliance.power_data = nil; -- nil mean, power is not required
 appliance.meta_infotext = "infotext";
 
-if appliances.have_technic then
-  function appliance:is_powered(meta)
-      -- check if node is powered LV
-      local eu_data = self.power_data["LV"];
-      if (eu_data~=nil) then
-        local eu_demand = eu_data.demand;
-        local eu_input = meta:get_int("LV_EU_input");
-        if (eu_input>=eu_demand) then
-          return eu_data.run_speed;
-        end
+local function disable_power_data(power_data, eu_data)
+  if (eu_data~=nil) then
+    if (eu_data.disable~=nil) then
+      for _, key in pairs(eu_data.disable) do
+        power_data[key] = nil;
       end
-      -- check if node is powered MV
-      local eu_data = self.power_data["MV"];
-      if (eu_data~=nil) then
-        local eu_demand = eu_data.demand;
-        local eu_input = meta:get_int("MV_EU_input");
-        if (eu_input>=eu_demand) then
-          return eu_data.run_speed;
-        end
-      end
-      -- check if node is powered HV
-      local eu_data = self.power_data["HV"];
-      if (eu_data~=nil) then
-        local eu_demand = eu_data.demand;
-        local eu_input = meta:get_int("HV_EU_input");
-        if (eu_input>=eu_demand) then
-          return eu_data.run_speed;
-        end
-      end
-      -- mesecon powered
-      local eu_data = self.power_data["mesecon"];
-      if (eu_data~=nil) then
-        local is_powered = meta:get_int("is_powered");
-        if (is_powered~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- punch
-      local eu_data = self.power_data["punch"];
-      if (eu_data~=nil) then
-        local is_punched = meta:get_int("is_punched");
-        if (is_punched~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- time only
-      local eu_data = self.power_data["time"];
-      if (eu_data~=nil) then
-        return eu_data.run_speed;
-      end
-      return 0;
+      eu_data.disable = nil;
     end
-elseif appliances.have_mesecons then
-  -- mesecon powered
-  function appliance:is_powered(meta)
-      -- mesecon powered
-      local eu_data = self.power_data["mesecon"];
-      if (eu_data~=nil) then
-        local is_powered = meta:get_int("is_powered");
-        if (is_powered~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- no technic
-      local eu_data = self.power_data["no_technic"];
-      if (eu_data~=nil) then
-        local is_powered = meta:get_int("is_powered");
-        if (is_powered~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- punch
-      local eu_data = self.power_data["punch"];
-      if (eu_data~=nil) then
-        local is_punched = meta:get_int("is_punched");
-        if (is_punched~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- time only
-      local eu_data = self.power_data["time"];
-      if (eu_data~=nil) then
+  end
+  
+end
+
+function appliance:power_data_register(power_data)
+  if appliances.have_technic then
+    disable_power_data(power_data, power_data["LV"]);
+    disable_power_data(power_data, power_data["MV"]);
+    disable_power_data(power_data, power_data["HV"]);
+  end
+  if appliances.have_mesecons then
+    disable_power_data(power_data, power_data["mesecon"]);
+  end
+  
+  if true then
+    disable_power_data(power_data, power_data["punch"]);
+    disable_power_data(power_data, power_data["time"]);
+    disable_power_data(power_data, power_data["mesecon"]);
+  end
+  self.power_data = power_data;
+end
+
+function appliance:is_powered(meta)
+  if appliances.have_technic then
+    -- check if node is powered LV
+    local eu_data = self.power_data["LV"];
+    if (eu_data~=nil) then
+      local eu_demand = eu_data.demand;
+      local eu_input = meta:get_int("LV_EU_input");
+      if (eu_input>=eu_demand) then
         return eu_data.run_speed;
       end
-      return 0;
     end
-else
-  -- no supported power mod is aviable
-  function appliance:is_powered(meta)
-      -- no technic
-      local eu_data = self.power_data["no_technic"];
-      if (eu_data~=nil) then
+    -- check if node is powered MV
+    local eu_data = self.power_data["MV"];
+    if (eu_data~=nil) then
+      local eu_demand = eu_data.demand;
+      local eu_input = meta:get_int("MV_EU_input");
+      if (eu_input>=eu_demand) then
         return eu_data.run_speed;
       end
-      -- punch
-      local eu_data = self.power_data["punch"];
-      if (eu_data~=nil) then
-        local is_punched = meta:get_int("is_punched");
-        if (is_punched~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- time only
-      local eu_data = self.power_data["time"];
-      if (eu_data~=nil) then
-        return eu_data.run_speed;
-      end
-      return 0;
     end
+    -- check if node is powered HV
+    local eu_data = self.power_data["HV"];
+    if (eu_data~=nil) then
+      local eu_demand = eu_data.demand;
+      local eu_input = meta:get_int("HV_EU_input");
+      if (eu_input>=eu_demand) then
+        return eu_data.run_speed;
+      end
+    end
+  end
+  if appliances.have_mesecons then
+    -- mesecon powered
+    local eu_data = self.power_data["mesecon"];
+    if (eu_data~=nil) then
+      local is_powered = meta:get_int("is_powered");
+      if (is_powered~=0) then
+        return eu_data.run_speed;
+      end
+    end
+  end
+  if true then
+    -- punch
+    local eu_data = self.power_data["punch"];
+    if (eu_data~=nil) then
+      local is_punched = meta:get_int("is_punched");
+      if (is_punched~=0) then
+        return eu_data.run_speed;
+      end
+    end
+    -- time only
+    local eu_data = self.power_data["time"];
+    if (eu_data~=nil) then
+      return eu_data.run_speed;
+    end
+    return 0;
+  end
 end
 
 function appliance:power_need(meta)
@@ -267,7 +246,8 @@ appliance.recipes = {
   }
 appliance.have_input = true;
 appliance.have_usage = true;
-appliance.stoppable_usage = true;
+appliance.stoppable_production = true;
+appliance.stoppable_consumption = true;
 
 function appliance:recipe_register_input(input_name, input_def)
   if (self.input_stack_size <= 1) then
@@ -395,6 +375,22 @@ end
 function appliance:recipe_output_to_stack(inventory, output)
   for index = 1,#output do
     inventory:add_item(self.output_stack, output[index]);
+  end
+end
+
+function appliance:recipe_output_to_stack_or_drop(pos, inventory, output)
+  local drop_pos = nil;
+  for index = 1,#output do
+    local leftover = inventory:add_item(self.output_stack, output[index]);
+    if (leftover:get_count()>0) then
+      if (drop_pos==nil) then
+        drop_pos = minetest.find_node_near(pos, 1, "air");
+        if (drop_pos==nil) then
+          drop_pos = pos;
+        end
+      end
+      minetest.add_item(drop_pos, leftover);
+    end
   end
 end
 
@@ -720,7 +716,7 @@ function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
     if self.need_water then
       pipeworks.scan_for_pipe_objects(pos);
     end
-    if self.have_tube then
+    if self.have_tubes then
       pipeworks.scan_for_tube_objects(pos);
     end
   end
@@ -752,7 +748,40 @@ function appliance:cb_on_blast(pos)
   minetest.remove_node(pos)
   return drops
 end
+
+function appliance:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time)
+  if (self.stoppable_production==false) then
+    if (production_time>0) then
+      if use_input.losts then
+        local output = self:recipe_select_output(use_input.losts);
+        self:recipe_output_to_stack_or_drop(pos, inv, output);
+      end
+      self:recipe_input_from_stack(inv, use_input);
+      meta:set_int("production_time", 0);
+      production_time = 0;
+    end
+  end
   
+  if (self.stoppable_consumption==false) then
+    if (consumption_time>0) then
+      local output = self:recipe_select_output(use_usage.outputs); 
+      if use_usage.losts then
+        output = self:recipe_select_output(use_usage.losts);
+      end
+      self:recipe_output_to_stack_or_drop(pos, inv, output);
+      self:recipe_usage_from_stack(inv, use_usage);
+      meta:set_int("consumption_time", 0);
+      consumption_time = 0;
+    end
+  end
+      
+  if use_usage then
+    self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
+  else
+    self:update_formspec(meta, production_time, use_input.production_time, 0, 1)
+  end
+end
+
 function appliance:after_timer_step(pos, meta, inv, production_time)
   local use_input, use_usage = self:recipe_aviable_input(inv)
   if use_input then
@@ -785,6 +814,7 @@ function appliance:cb_on_timer(pos, elapsed)
   -- check if node is powered
   local speed, have_power = self:have_power(pos, meta, inv)
   if (not have_power) then
+    self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
     self:no_power(pos, meta);
     return true;
   end
@@ -811,6 +841,7 @@ function appliance:cb_on_timer(pos, elapsed)
     if (consumption_time>=use_usage.consumption_time) then
       local output = self:recipe_select_output(use_usage.outputs); 
       if (not self:recipe_room_for_output(inv, output)) then
+        self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
         self:waiting(pos, meta);
         return true;
       end
@@ -1009,7 +1040,7 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
     node_def_inactive.pipe_connections[self.pipe_side.."_param2"] = pipe_connections[self.pipe_side];
   end
   if appliances.have_pipeworks then
-    if self.have_tube then
+    if self.have_tubes then
       node_def_inactive.groups.tubedevice = 1;
       node_def_inactive.groups.tubedevice_receiver = 1;
       node_def_inactive.tube =
@@ -1144,13 +1175,12 @@ function appliance:register_recipes(inout_type, usage_type)
         if (type(outputs)=="table") then
           outputs = outputs[1];
         end
-        local item = ItemStack(input);
-        --appliances.register_craft({
-        minetest.log("warning",dump({
+        local item = ItemStack(input):to_string();
+        appliances.register_craft({
             type = usage_type,
-            output = ItemStack(outputs):to_string(),
+            output = self.node_name_inactive,
             items = {item},
-          }))
+          })
       end
     end
   end
