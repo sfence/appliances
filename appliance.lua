@@ -189,8 +189,8 @@ function appliance:is_powered(meta)
     if (eu_data~=nil) then
       return eu_data.run_speed;
     end
-    return 0;
   end
+  return 0;
 end
 
 function appliance:power_need(meta)
