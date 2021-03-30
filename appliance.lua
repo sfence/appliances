@@ -88,6 +88,9 @@ local power_data = {
   ["LV"] = {
       demand = 100,
       run_speed = 1,
+      -- list of power_data to disable if this one is aviable
+      -- used when power data is registered by function
+      disable = {},
     },
   ["no_technic"] = {
       run_speed = 1,
@@ -98,115 +101,92 @@ local power_data = {
 appliance.power_data = nil; -- nil mean, power is not required
 appliance.meta_infotext = "infotext";
 
-if appliances.have_technic then
-  function appliance:is_powered(meta)
-      -- check if node is powered LV
-      local eu_data = self.power_data["LV"];
-      if (eu_data~=nil) then
-        local eu_demand = eu_data.demand;
-        local eu_input = meta:get_int("LV_EU_input");
-        if (eu_input>=eu_demand) then
-          return eu_data.run_speed;
-        end
+local function disable_power_data(power_data, eu_data)
+  if (eu_data~=nil) then
+    if (eu_data.disable~=nil) then
+      for _, key in pairs(eu_data.disable) do
+        power_data[key] = nil;
       end
-      -- check if node is powered MV
-      local eu_data = self.power_data["MV"];
-      if (eu_data~=nil) then
-        local eu_demand = eu_data.demand;
-        local eu_input = meta:get_int("MV_EU_input");
-        if (eu_input>=eu_demand) then
-          return eu_data.run_speed;
-        end
-      end
-      -- check if node is powered HV
-      local eu_data = self.power_data["HV"];
-      if (eu_data~=nil) then
-        local eu_demand = eu_data.demand;
-        local eu_input = meta:get_int("HV_EU_input");
-        if (eu_input>=eu_demand) then
-          return eu_data.run_speed;
-        end
-      end
-      -- mesecon powered
-      local eu_data = self.power_data["mesecon"];
-      if (eu_data~=nil) then
-        local is_powered = meta:get_int("is_powered");
-        if (is_powered~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- punch
-      local eu_data = self.power_data["punch"];
-      if (eu_data~=nil) then
-        local is_punched = meta:get_int("is_punched");
-        if (is_punched~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- time only
-      local eu_data = self.power_data["time"];
-      if (eu_data~=nil) then
-        return eu_data.run_speed;
-      end
-      return 0;
+      eu_data.disable = nil;
     end
-elseif appliances.have_mesecons then
-  -- mesecon powered
-  function appliance:is_powered(meta)
-      -- mesecon powered
-      local eu_data = self.power_data["mesecon"];
-      if (eu_data~=nil) then
-        local is_powered = meta:get_int("is_powered");
-        if (is_powered~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- no technic
-      local eu_data = self.power_data["no_technic"];
-      if (eu_data~=nil) then
-        local is_powered = meta:get_int("is_powered");
-        if (is_powered~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- punch
-      local eu_data = self.power_data["punch"];
-      if (eu_data~=nil) then
-        local is_punched = meta:get_int("is_punched");
-        if (is_punched~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- time only
-      local eu_data = self.power_data["time"];
-      if (eu_data~=nil) then
+  end
+  
+end
+
+function appliance:power_data_register(power_data)
+  if appliances.have_technic then
+    disable_power_data(power_data, power_data["LV"]);
+    disable_power_data(power_data, power_data["MV"]);
+    disable_power_data(power_data, power_data["HV"]);
+  end
+  if appliances.have_mesecons then
+    disable_power_data(power_data, power_data["mesecon"]);
+  end
+  
+  if true then
+    disable_power_data(power_data, power_data["punch"]);
+    disable_power_data(power_data, power_data["time"]);
+    disable_power_data(power_data, power_data["mesecon"]);
+  end
+  self.power_data = power_data;
+end
+
+function appliance:is_powered(meta)
+  if appliances.have_technic then
+    -- check if node is powered LV
+    local eu_data = self.power_data["LV"];
+    if (eu_data~=nil) then
+      local eu_demand = eu_data.demand;
+      local eu_input = meta:get_int("LV_EU_input");
+      if (eu_input>=eu_demand) then
         return eu_data.run_speed;
       end
-      return 0;
     end
-else
-  -- no supported power mod is aviable
-  function appliance:is_powered(meta)
-      -- no technic
-      local eu_data = self.power_data["no_technic"];
-      if (eu_data~=nil) then
+    -- check if node is powered MV
+    local eu_data = self.power_data["MV"];
+    if (eu_data~=nil) then
+      local eu_demand = eu_data.demand;
+      local eu_input = meta:get_int("MV_EU_input");
+      if (eu_input>=eu_demand) then
         return eu_data.run_speed;
       end
-      -- punch
-      local eu_data = self.power_data["punch"];
-      if (eu_data~=nil) then
-        local is_punched = meta:get_int("is_punched");
-        if (is_punched~=0) then
-          return eu_data.run_speed;
-        end
-      end
-      -- time only
-      local eu_data = self.power_data["time"];
-      if (eu_data~=nil) then
-        return eu_data.run_speed;
-      end
-      return 0;
     end
+    -- check if node is powered HV
+    local eu_data = self.power_data["HV"];
+    if (eu_data~=nil) then
+      local eu_demand = eu_data.demand;
+      local eu_input = meta:get_int("HV_EU_input");
+      if (eu_input>=eu_demand) then
+        return eu_data.run_speed;
+      end
+    end
+  end
+  if appliances.have_mesecons then
+    -- mesecon powered
+    local eu_data = self.power_data["mesecon"];
+    if (eu_data~=nil) then
+      local is_powered = meta:get_int("is_powered");
+      if (is_powered~=0) then
+        return eu_data.run_speed;
+      end
+    end
+  end
+  if true then
+    -- punch
+    local eu_data = self.power_data["punch"];
+    if (eu_data~=nil) then
+      local is_punched = meta:get_int("is_punched");
+      if (is_punched~=0) then
+        return eu_data.run_speed;
+      end
+    end
+    -- time only
+    local eu_data = self.power_data["time"];
+    if (eu_data~=nil) then
+      return eu_data.run_speed;
+    end
+    return 0;
+  end
 end
 
 function appliance:power_need(meta)
