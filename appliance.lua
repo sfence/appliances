@@ -1191,13 +1191,12 @@ function appliance:register_recipes(inout_type, usage_type)
         if (type(outputs)=="table") then
           outputs = outputs[1];
         end
-        local item = ItemStack(input);
-        --appliances.register_craft({
-        minetest.log("warning",dump({
+        local item = ItemStack(input):to_string();
+        appliances.register_craft({
             type = usage_type,
-            output = ItemStack(outputs):to_string(),
+            output = self.node_name_inactive,
             items = {item},
-          }))
+          })
       end
     end
   end
