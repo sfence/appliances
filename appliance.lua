@@ -60,7 +60,7 @@ if appliances.have_pipeworks then
     ["pipeworks:straight_pipe_loaded"] = true,
   };
 
-  function appliance:have_water(appliance, pos)
+  function appliance:have_water(pos)
     local node = minetest.get_node({x=pos.x, y=pos.y+1, z=pos.z});
     if node then
       if (pipeworks_pipe_loaded[node.name]) then
@@ -716,8 +716,14 @@ function appliance:cb_can_dig(pos)
 end
 
 function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
-  pipeworks.scan_for_pipe_objects(pos);
-  pipeworks.scan_for_tube_objects(pos);
+  if appliances.have_pipeworks then
+    if self.need_water then
+      pipeworks.scan_for_pipe_objects(pos);
+    end
+    if self.have_tube then
+      pipeworks.scan_for_tube_objects(pos);
+    end
+  end
   
   if self.have_usage then
     local stack = oldmetadata.inventory[self.use_stack][1];
@@ -891,7 +897,7 @@ end
 function appliance:cb_on_construct(pos)
   local meta = minetest.get_meta(pos)
   meta:set_string("formspec", self:get_formspec(meta, 0, 0))
-  meta:set_string("infotext", self.node_description)
+  meta:set_string(self.meta_infotext, self.node_description)
   local inv = meta:get_inventory()
   
   if self.input_stack_size>0 then
@@ -1097,55 +1103,54 @@ end
 
 -- register recipes to unified_inventory
 function appliance:register_recipes(inout_type, usage_type)
-  if appliances.have_unified then
-    if (self.input_stack_size<=1) then
-      for input, recipe in pairs(self.recipes.inputs) do
-        for _, outputs in pairs(recipe.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
-          end
-          local item = ItemStack(input);
-          item:set_count(recipe.inputs);
-          unified_inventory.register_craft({
-              type = inout_type,
-              output = ItemStack(outputs):to_string(),
-              items = {item},
-            })
+  if (self.input_stack_size<=1) then
+    for input, recipe in pairs(self.recipes.inputs) do
+      for _, outputs in pairs(recipe.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
         end
-      end
-    else
-      for input, recipe in pairs(self.recipes.inputs) do
-        for _, outputs in pairs(recipe.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
-          end
-          local items = {};
-          for _, item in pairs(recipe.inputs) do
-            table.insert(items, ItemStack(item));
-          end
-          unified_inventory.register_craft({
-              type = inout_type,
-              output = ItemStack(outputs):to_string(),
-              items = items,
-            })
-        end
+        local item = ItemStack(input);
+        item:set_count(recipe.inputs);
+        appliances.register_craft({
+            type = inout_type,
+            output = ItemStack(outputs):to_string(),
+            items = {item:to_string()},
+          })
       end
     end
-    
-    if (self.have_usage) then
-      for input, usage in pairs(self.recipes.usages) do
-        for _, outputs in pairs(usage.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
-          end
-          local item = ItemStack(input);
-          --unified_inventory.register_craft({
-          minetest.log("warning",dump({
-              type = usage_type,
-              output = ItemStack(outputs):to_string(),
-              items = {item},
-            }))
+  else
+    for input, recipe in pairs(self.recipes.inputs) do
+      for _, outputs in pairs(recipe.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
         end
+        local items = {};
+        for _, item in pairs(recipe.inputs) do
+          table.insert(items, ItemStack(item):to_string());
+        end
+        appliances.register_craft({
+            type = inout_type,
+            output = ItemStack(outputs):to_string(),
+            items = items,
+            width = self.input_stack_width,
+          })
+      end
+    end
+  end
+  
+  if (self.have_usage) then
+    for input, usage in pairs(self.recipes.usages) do
+      for _, outputs in pairs(usage.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
+        end
+        local item = ItemStack(input);
+        --appliances.register_craft({
+        minetest.log("warning",dump({
+            type = usage_type,
+            output = ItemStack(outputs):to_string(),
+            items = {item},
+          }))
       end
     end
   end
