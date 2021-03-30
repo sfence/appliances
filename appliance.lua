@@ -90,10 +90,15 @@ local power_data = {
       run_speed = 1,
       -- list of power_data to disable if this one is aviable
       -- used when power data is registered by function
-      disable = {},
+      disable = {"mesecons","time"},
     },
-  ["no_technic"] = {
+  ["mesecons"] = {
       run_speed = 1,
+      disable = {"LV","time"},
+    },
+  ["time"] = {
+      run_speed = 1,
+      disable = {"LV","mesecons"},
     },
 }
 --]]
@@ -120,13 +125,12 @@ function appliance:power_data_register(power_data)
     disable_power_data(power_data, power_data["HV"]);
   end
   if appliances.have_mesecons then
-    disable_power_data(power_data, power_data["mesecon"]);
+    disable_power_data(power_data, power_data["mesecons"]);
   end
   
   if true then
     disable_power_data(power_data, power_data["punch"]);
     disable_power_data(power_data, power_data["time"]);
-    disable_power_data(power_data, power_data["mesecon"]);
   end
   self.power_data = power_data;
 end
@@ -163,7 +167,7 @@ function appliance:is_powered(meta)
   end
   if appliances.have_mesecons then
     -- mesecon powered
-    local eu_data = self.power_data["mesecon"];
+    local eu_data = self.power_data["mesecons"];
     if (eu_data~=nil) then
       local is_powered = meta:get_int("is_powered");
       if (is_powered~=0) then
@@ -875,7 +879,11 @@ function appliance:cb_on_timer(pos, elapsed)
   end
   
   -- have aviable production recipe?
-  return self:after_timer_step(pos, meta, inv, production_time);
+  local continue_timer = self:after_timer_step(pos, meta, inv, production_time);
+  if (continue_timer==false) then
+    self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
+  end
+  return continue_timer;
 end
 
 function appliance:cb_allow_metadata_inventory_move(pos, from_list, from_index, to_list, to_index, count, player)
