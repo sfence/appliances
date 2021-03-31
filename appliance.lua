@@ -756,11 +756,13 @@ end
 function appliance:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time)
   if (self.stoppable_production==false) then
     if (production_time>0) then
-      if use_input.losts then
-        local output = self:recipe_select_output(use_input.losts);
-        self:recipe_output_to_stack_or_drop(pos, inv, output);
+      if use_input then
+        if use_input.losts then
+          local output = self:recipe_select_output(use_input.losts);
+          self:recipe_output_to_stack_or_drop(pos, inv, output);
+        end
+        self:recipe_input_from_stack(inv, use_input);
       end
-      self:recipe_input_from_stack(inv, use_input);
       meta:set_int("production_time", 0);
       production_time = 0;
     end
@@ -768,22 +770,33 @@ function appliance:interrupt_production(pos, meta, inv, use_input, use_usage, pr
   
   if (self.stoppable_consumption==false) then
     if (consumption_time>0) then
-      local output = self:recipe_select_output(use_usage.outputs); 
-      if use_usage.losts then
-        output = self:recipe_select_output(use_usage.losts);
+      if use_usage then
+        local output = self:recipe_select_output(use_usage.outputs); 
+        if use_usage.losts then
+          output = self:recipe_select_output(use_usage.losts);
+        end
+        self:recipe_output_to_stack_or_drop(pos, inv, output);
+        self:recipe_usage_from_stack(inv, use_usage);
       end
-      self:recipe_output_to_stack_or_drop(pos, inv, output);
-      self:recipe_usage_from_stack(inv, use_usage);
       meta:set_int("consumption_time", 0);
       consumption_time = 0;
     end
   end
-      
-  if use_usage then
-    self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
+  
+  local target_production_time = 1;
+  local target_consumption_time = 1;
+  if use_input then
+    target_production_time = use_input.production_time;
   else
-    self:update_formspec(meta, production_time, use_input.production_time, 0, 1)
+    production_time = 0;
   end
+  if use_usage then
+    target_consumption_time = use_usage.consumption_time;
+  else
+    consumption_time = 0;
+  end
+  
+  self:update_formspec(meta, production_time, target_production_time, consumption_time, target_consumption_time);
 end
 
 function appliance:after_timer_step(pos, meta, inv, production_time)
@@ -811,6 +824,9 @@ function appliance:cb_on_timer(pos, elapsed)
   
   local use_input, use_usage, need_wait = self:need_wait(pos, meta, inv);
   if need_wait then
+    if ((production_time>0) or (consumption_time>0)) then
+      self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
+    end
     self:waiting(pos, meta);
     return true;
   end
@@ -973,11 +989,12 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   
   local node_def_inactive = table.copy(shared_def);
   
-  node_def_inactive.description = self.node_description;
+  -- use .."" to prevent string object share
+  node_def_inactive.description = self.node_description.."";
   if (self.node_help) then
     node_def_inactive.description = self.node_description.."\n"..self.node_help;
   end
-  node_def_inactive.short_description = self.node_description;
+  node_def_inactive.short_description = self.node_description.."";
   
   local need_power = false;
   local technic_power = false;
