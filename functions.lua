@@ -51,7 +51,7 @@ end
 -- {
 --   type = "", -- type name
 --   output = "", -- item string
---   items = "", -- input items
+--   items = {""}, -- input items
 -- }
 --
 function appliances.register_craft(craft_def)
