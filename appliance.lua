@@ -976,11 +976,12 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   
   local node_def_inactive = table.copy(shared_def);
   
-  node_def_inactive.description = self.node_description;
+  -- use .."" to prevent string object share
+  node_def_inactive.description = self.node_description.."";
   if (self.node_help) then
     node_def_inactive.description = self.node_description.."\n"..self.node_help;
   end
-  node_def_inactive.short_description = self.node_description;
+  node_def_inactive.short_description = self.node_description.."";
   
   local need_power = false;
   local technic_power = false;
