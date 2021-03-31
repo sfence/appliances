@@ -811,6 +811,9 @@ function appliance:cb_on_timer(pos, elapsed)
   
   local use_input, use_usage, need_wait = self:need_wait(pos, meta, inv);
   if need_wait then
+    if ((production_time>0) or (consumption_time>0)) then
+      self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
+    end
     self:waiting(pos, meta);
     return true;
   end
