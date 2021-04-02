@@ -1,4 +1,7 @@
 -- Example 1
+--
+-- Basic punch powered machine
+-- Use different power data for different power mechanism
 
 local S = minetest.get_translator("translator_name");
 
@@ -6,7 +9,7 @@ clothing.example1_machine = appliances.appliance:new(
     {
       -- registered node names
       node_name_inactive = "example:example_1_machine",
-      node_name_active = "clothing:example_1_machine_active",
+      node_name_active = "example:example_1_machine_active",
       
       -- short description and first line of description
       node_description = S("Example 1 machine"),
@@ -176,21 +179,18 @@ example_1_machine:register_nodes(node_def, inactive_node, active_node)
 -- Recipe Registration --
 -------------------------
 
-if (minetest.get_modpath("unified_inventory")~=nil) then
-  -- register craft types for unified_inventory
-  unified_inventory.register_craft_type("example_1", {
-      description = S("Example");
-      icon = "example_1.png";
-      width = 1,
-      height = 1,
-    })
-  unified_inventory.register_craft_type("example_1_use", {
-      description = S("Example use");
-      icon = "example_use_1.png";
-      width = 1,
-      height = 1,
-    })
-end
+appliances.register_craft_type("example_example_1", {
+    description = S("Example");
+    icon = "example_1.png";
+    width = 1,
+    height = 1,
+  })
+appliances.register_craft_type("example_example_1_use", {
+    description = S("Example use");
+    icon = "example_use_1.png";
+    width = 1,
+    height = 1,
+  })
 
 -- register usage
 example_1_machine:recipe_register_usage(
@@ -212,5 +212,5 @@ example_1_machine:recipe_register_input(
   });
 
 -- register recipes to unified_inventory
-example_1_machine:register_recipes("clothing_example_1", "clothing_example_1_use")
+example_1_machine:register_recipes("example_example_1", "example_example_1_use")
 
