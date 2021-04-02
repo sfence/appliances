@@ -432,7 +432,7 @@ function appliance:recipe_step_size(step_size)
   return int_step_size;
 end
 
-function appliance:recipe_inventory_can_put(pos, listname, index, stack, player, recipes)
+function appliance:recipe_inventory_can_put(pos, listname, index, stack, player)
   if player then
     if minetest.is_protected(pos, player:get_player_name()) then
       return 0
@@ -512,13 +512,26 @@ end
 -- tube can insert
 function appliance:tube_can_insert (pos, node, stack, direction, owner)
   if self.recipes then
-    local input = self.recipes.inputs[stack:get_name()];
-    if input then
-      return appliances.recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil, recipes);
+    if self.have_input then
+      if (self.input_stack_size <= 1) then
+        local input = self.recipes.inputs[stack:get_name()];
+        if input then
+          return self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil);
+        end
+      else
+        for index = 1,self.input_stack_size do
+          local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
+          if can_insert then
+            return can_insert;
+          end
+        end
+      end
     end
-    local usage = self.recipes.usages[stack:get_name()];
-    if usage then
-      return appliances.recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil, recipes);
+    if self.have_usage then
+      local usage = self.recipes.usages[stack:get_name()];
+      if usage then
+        return self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil);
+      end
     end
   end
   return false;
@@ -528,13 +541,26 @@ function appliance:tube_insert (pos, node, stack, direction, owner)
     local meta = minetest.get_meta(pos);
     local inv = meta:get_inventory();
     
-    local input = self.recipes.inputs[stack:get_name()];
-    if input then
-      return inv:add_item(self.input_stack, stack);
+    if self.have_input then
+      if (self.input_stack_size <= 1) then
+        local input = self.recipes.inputs[stack:get_name()];
+        if input then
+          return inv:add_item(self.input_stack, stack);
+        end
+      else
+        for index = 1,self.input_stack_size do
+          local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
+          if can_insert then
+            return inv:get_stack(add_item(self.input_stack,index):add_item(stack));
+          end
+        end
+      end
     end
-    local usages = self.recipes.usages[stack:get_name()];
-    if usages then
-      return inv:add_item(self.use_stack, stack);
+    if self.have_usage then
+      local usages = self.recipes.usages[stack:get_name()];
+      if usages then
+        return inv:add_item(self.use_stack, stack);
+      end
     end
   end
   
@@ -686,11 +712,11 @@ end
 
 -- appliance node callbacks for pipeworks
 function appliance:cb_tube_insert_object(pos, node, stack, direction, owner)
-  local stack = appliance:tube_insert(pos, node, stack, direction, owner);
+  local stack = self:tube_insert(pos, node, stack, direction, owner);
   
   local meta = minetest.get_meta(pos);
   local inv = meta:get_inventory();
-  local use_input, use_usage = appliance:recipe_aviable_input(inv)
+  local use_input, use_usage = self:recipe_aviable_input(inv)
   if use_input then
     self:activate(pos, meta);
   end
@@ -698,7 +724,7 @@ function appliance:cb_tube_insert_object(pos, node, stack, direction, owner)
   return stack;
 end
 function appliance:cb_tube_can_insert(pos, node, stack, direction, owner)
-  return appliance:tube_can_insert(pos, node, stack, direction, owner);
+  return self:tube_can_insert(pos, node, stack, direction, owner);
 end
 
 -- appliance node callbacks for technic
