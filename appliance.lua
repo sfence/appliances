@@ -521,7 +521,7 @@ function appliance:tube_can_insert (pos, node, stack, direction, owner)
       else
         for index = 1,self.input_stack_size do
           local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
-          if can_insert then
+          if (can_insert~=0) then
             return can_insert;
           end
         end
@@ -550,8 +550,11 @@ function appliance:tube_insert (pos, node, stack, direction, owner)
       else
         for index = 1,self.input_stack_size do
           local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
-          if can_insert then
-            return inv:get_stack(add_item(self.input_stack,index):add_item(stack));
+          if (can_insert~=0) then
+            local input_stack = inv:get_stack(self.input_stack,index);
+            local remind = input_stack:add_item(stack);
+            inv:set_stack(self.input_stack,index, input_stack);
+            return remind;
           end
         end
       end
