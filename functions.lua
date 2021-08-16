@@ -63,24 +63,7 @@ function appliances.register_craft(craft_def)
       })
   end
   if appliances.have_craftguide or appliances.have_i3 then
-    local items = craft_def.items;
-    if craft_def.width then
-      items = {};
-      local line = "";
-      for index, item in pairs(craft_def.items) do
-        if (line~="") then
-          line = line..",";
-        end
-        line = line..item;
-        if ((index%craft_def.width)==0) then
-          table.insert(items, line);
-          line = "";
-        end
-      end
-      if (line~="") then
-        table.insert(items, line);
-      end
-    end
+    local items = table.concat(craft_def.items, ",");
     
     if appliances.have_craftguide then
       craftguide.register_craft({

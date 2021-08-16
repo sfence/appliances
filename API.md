@@ -42,7 +42,7 @@ Power data
     run_speed = 1.0,
     -- demand in EU, used by technic mod (keys "LV", "MV", "HV")
     demand = 100,
-    -- list of power_data keysfor disable, when this one is usable
+    -- list of power_data keys for disable, when this one is usable
     disable = {}
   }
 
