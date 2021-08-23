@@ -612,7 +612,7 @@ function appliance:get_formspec(meta, production_percent, consumption_percent)
   local formspec =  "formspec_version[3]" .. "size[12.75,8.5]" ..
                     "background[-1.25,-1.25;15,10;appliances_appliance_formspec.png]" ..
                     progress..
-                    "list[current_player;main;1.5,3;8,4;]" ..
+                    "list[current_player;main;0.25,3;10,4;]" ..
                     input_list ..
                     use_list ..
                     "list[context;"..self.output_stack..";9.75,0.25;2,2;]" ..
