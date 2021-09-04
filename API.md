@@ -1,10 +1,53 @@
-Appliance API
-================
+# Appliance API
+
 
 See example folder for appliance examples.
 
-Appliance table parameters
-==========================
+## Appliances API functions (common)
+
+### appliances.swap_node(pos, name)
+
+* Function swap node by using minetest.swap_node fucntion.
+* Metadata of node isn't affected.
+* pos - node position
+* name - new node name
+
+### appliances.register_craft_type(type_name, type_def)
+
+* Register craft type.
+* type_name - Unique name of crafting type
+* type_def - table with definition of crafting type
+  * description - description of crafting type
+  * icon - icon picture name
+  * width - width of recipe
+  * height - height of recipe
+  * dynamic_display_size - unified_inventory callback only
+
+### appliances.register_craft(craft_def)
+
+* Register craft recipe.
+* craft_def - table with craft recipe definition
+  * type - type of recipe
+  * output - recipe product
+  * items - input items
+
+## Appliance recipes
+
+## Appliance power supply
+
+Some power supply should be always registered.
+
+## Appliance object functions
+
+Methods of object appliances.appliance.
+
+### appliance:new(def)
+
+### appliance:power_data_register(power_data)
+
+* Take only useful power_data
+
+## Appliance table parameters
 
 appliance.input\_stack = "input"; -- input stack name, can be nil, can be same as output\_stack
 appliance.input\_stack\_size = 1; -- zero value will disable stack creation 
@@ -32,7 +75,7 @@ Power data
 ### Keys - ordered by priority:
   "LV", "MV", "HV" -> powered by technic LV, MV or HV
   "mesecons" -> powered by messecons
-  "hand" -> powered by punching
+  "punch" -> powered by punching
   "time" -> only time is need to create output
   
   

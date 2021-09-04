@@ -13,4 +13,5 @@ appliances.have_i3 = minetest.get_modpath("i3")~=nil;
 
 dofile(modpath.."/functions.lua");
 dofile(modpath.."/appliance.lua");
+dofile(modpath.."/extensions.lua");
 

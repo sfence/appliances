@@ -25,200 +25,87 @@ appliance.use_stack_size = 1;
 appliance.output_stack = "output";
 appliance.output_stack_size = 4;
 
---
-appliance.have_tubes = true;
+appliance.items_connect_sides = {"right", "left"}; -- right, left, front, back, top, bottom
 
--- is appliance connected to water?
-local pipe_connections = {
-  left = minetest.dir_to_facedir({x=0,y=0,z=-1}),
-  right = minetest.dir_to_facedir({x=0,y=0,z=1}),
-  top = nil,
-  bottom = nil,
-  front = minetest.dir_to_facedir({x=-1,y=0,z=0}),
-  back = minetest.dir_to_facedir({x=1,y=0,z=0}),
-}
-appliance.need_water = false;
-appliance.pipe_side = "top"; -- right, left, front, back, bottom
-if appliances.have_pipeworks then
-  local pipeworks_pipe_loaded = {
-    ["pipeworks:pipe_1_loaded"] = true,
-    ["pipeworks:pipe_2_loaded"] = true,
-    ["pipeworks:pipe_3_loaded"] = true,
-    ["pipeworks:pipe_4_loaded"] = true,
-    ["pipeworks:pipe_5_loaded"] = true,
-    ["pipeworks:pipe_6_loaded"] = true,
-    ["pipeworks:pipe_7_loaded"] = true,
-    ["pipeworks:pipe_8_loaded"] = true,
-    ["pipeworks:pipe_9_loaded"] = true,
-    ["pipeworks:pipe_10_loaded"] = true,
-  };
-  local pipeworks_pipe_with_facedir_loaded = {
-    ["pipeworks:valve_on_loaded"] = true,
-    ["pipeworks:entry_panel_loaded"] = true,
-    ["pipeworks:flow_sensor_loaded"] = true,
-    ["pipeworks:straight_pipe_loaded"] = true,
-  };
-
-  function appliance:have_water(pos)
-    local node = minetest.get_node({x=pos.x, y=pos.y+1, z=pos.z});
-    if node then
-      if (pipeworks_pipe_loaded[node.name]) then
+appliance.liquid_connect_sides = {"top"}; -- right, left, front, back, top, bottom
+function appliance:have_liquid(pos, meta)
+  for supply_name, supply_data in pairs(self.liquid_data) do
+    local supply = appliances.liquid_supplies[supply_name]
+    if supply and supply.have_liquid then
+      if (supply.have_liquid(self, supply_data, pos, meta)) then
         return true;
       end
-      if (pipeworks_pipe_with_facedir_loaded[node.name]) then
-        if (minetest.facedir_to_dir(node.param2).y~=0) then
-          return true;
-        end
-      end
     end
-    return false;
   end
-else
-  function appliance:have_water(pos)
-    if (minetest.find_node_near(pos, 1, "group:water", false)) then
-      return true;
-    else
-      return false;
+  return false;
+end
+
+appliance.power_connect_sides = {"back"}; -- right, left, front, back, top, bottom
+
+appliance.power_data = {};
+appliance.liquid_data = {};
+appliance.item_data = {};
+appliance.control_data = {};
+
+appliance.meta_infotext = "infotext";
+
+local function disable_supply_data(supplies_data, supply_data)
+  if (supply_data~=nil) then
+    if (supply_data.disable~=nil) then
+      for _,key in pairs(supply_data.disable) do
+        supplies_data[key] = nil;
+      end
+      supply_data.disable = nil;
     end
   end
 end
-
---[[
-local power_data = {
-  ["LV"] = {
-      demand = 100,
-      run_speed = 1,
-      -- list of power_data to disable if this one is aviable
-      -- used when power data is registered by function
-      disable = {"mesecons","time"},
-    },
-  ["mesecons"] = {
-      run_speed = 1,
-      disable = {"LV","time"},
-    },
-  ["time"] = {
-      run_speed = 1,
-      disable = {"LV","mesecons"},
-    },
-}
---]]
-
-appliance.power_data = nil; -- nil mean, power is not required
-appliance.meta_infotext = "infotext";
-
-local function disable_power_data(power_data, eu_data)
-  if (eu_data~=nil) then
-    if (eu_data.disable~=nil) then
-      for _, key in pairs(eu_data.disable) do
-        power_data[key] = nil;
-      end
-      eu_data.disable = nil;
-    end
+local function disable_supplies_data(supplies_data)
+  for _,supply_data in pairs(supplies_data) do
+    disable_supply_data(supplies_data, supply_data);
   end
-  
+  return supplies_data;
 end
 
 function appliance:power_data_register(power_data)
-  if appliances.have_technic then
-    disable_power_data(power_data, power_data["LV"]);
-    disable_power_data(power_data, power_data["MV"]);
-    disable_power_data(power_data, power_data["HV"]);
-  end
-  if appliances.have_mesecons then
-    disable_power_data(power_data, power_data["mesecons"]);
-  end
-  
-  if true then
-    disable_power_data(power_data, power_data["punch"]);
-    disable_power_data(power_data, power_data["time"]);
-  end
-  self.power_data = power_data;
+  self.power_data = disable_supplies_data(power_data);
+end
+function appliance:liquid_data_register(liquid_data)
+  self.liquid_data = disable_supplies_data(liquid_data);
+end
+function appliance:item_data_register(item_data)
+  self.item_data = disable_supplies_data(item_data);
+end
+function appliance:control_data_register(control_data)
+  self.control_data = disable_supplies_data(control_data);
 end
 
-function appliance:is_powered(meta)
-  if appliances.have_technic then
-    -- check if node is powered LV
-    local eu_data = self.power_data["LV"];
-    if (eu_data~=nil) then
-      local eu_demand = eu_data.demand;
-      local eu_input = meta:get_int("LV_EU_input");
-      if (eu_input>=eu_demand) then
-        return eu_data.run_speed;
+function appliance:is_powered(pos, meta)
+  for supply_name, supply_data in pairs(self.power_data) do
+    local supply = appliances.power_supplies[supply_name]
+    if supply and supply.is_powered then
+      local speed = supply.is_powered(self, supply_data, pos, meta)
+      if (speed~=0) then
+        return speed;
       end
-    end
-    -- check if node is powered MV
-    local eu_data = self.power_data["MV"];
-    if (eu_data~=nil) then
-      local eu_demand = eu_data.demand;
-      local eu_input = meta:get_int("MV_EU_input");
-      if (eu_input>=eu_demand) then
-        return eu_data.run_speed;
-      end
-    end
-    -- check if node is powered HV
-    local eu_data = self.power_data["HV"];
-    if (eu_data~=nil) then
-      local eu_demand = eu_data.demand;
-      local eu_input = meta:get_int("HV_EU_input");
-      if (eu_input>=eu_demand) then
-        return eu_data.run_speed;
-      end
-    end
-  end
-  if appliances.have_mesecons then
-    -- mesecon powered
-    local eu_data = self.power_data["mesecons"];
-    if (eu_data~=nil) then
-      local is_powered = meta:get_int("is_powered");
-      if (is_powered~=0) then
-        return eu_data.run_speed;
-      end
-    end
-  end
-  if true then
-    -- punch
-    local eu_data = self.power_data["punch"];
-    if (eu_data~=nil) then
-      local is_punched = meta:get_int("is_punched");
-      if (is_punched~=0) then
-        return eu_data.run_speed;
-      end
-    end
-    -- time only
-    local eu_data = self.power_data["time"];
-    if (eu_data~=nil) then
-      return eu_data.run_speed;
     end
   end
   return 0;
 end
 
-function appliance:power_need(meta)
-  local eu_data = self.power_data["LV"];
-  if (eu_data~=nil) then
-    meta:set_int("LV_EU_demand", eu_data.demand)
-  end
-  local eu_data = self.power_data["MV"];
-  if (eu_data~=nil) then
-    meta:set_int("MV_EU_demand", eu_data.demand)
-  end
-  local eu_data = self.power_data["HV"];
-  if (eu_data~=nil) then
-    meta:set_int("HV_EU_demand", eu_data.demand)
+function appliance:power_need(pos, meta)
+  for supply_name, supply_data in pairs(self.power_data) do
+    local supply = appliances.power_supplies[supply_name]
+    if supply and supply.power_need then
+      supply.power_need(self, supply_data, pos, meta)
+    end
   end
 end
-function appliance:power_idle(meta)
-  local eu_data = self.power_data["LV"];
-  if (eu_data~=nil) then
-    meta:set_int("LV_EU_demand", 0)
-  end
-  local eu_data = self.power_data["MV"];
-  if (eu_data~=nil) then
-    meta:set_int("MV_EU_demand", 0)
-  end
-  local eu_data = self.power_data["HV"];
-  if (eu_data~=nil) then
-    meta:set_int("HV_EU_demand", 0)
+function appliance:power_idle(pos, meta)
+  for supply_name, supply_data in pairs(self.power_data) do
+    local supply = appliances.power_supplies[supply_name]
+    if supply and supply.power_idle then
+      supply.power_idle(self, supply_data, pos, meta)
+    end
   end
 end
 
@@ -253,7 +140,13 @@ appliance.have_usage = true;
 appliance.stoppable_production = true;
 appliance.stoppable_consumption = true;
 
+appliance.have_control = false;
+
 function appliance:recipe_register_input(input_name, input_def)
+  if (not self.have_input) then
+    minetest.log("error", "Input is disabled. Registration of input recipe cannot be finished.");
+    return;
+  end
   if (self.input_stack_size <= 1) then
     self.recipes.inputs[input_name] = input_def;
   else
@@ -271,6 +164,10 @@ function appliance:recipe_register_input(input_name, input_def)
   end
 end
 function appliance:recipe_register_usage(usage_name, usage_def)
+  if (not self.have_usage) then
+    minetest.log("error", "Usage is disabled. Registration of usage recipe cannot be finished.");
+    return;
+  end
   if (not self.recipes.usages) then
     self.recipes.usages = {};
   end
@@ -279,48 +176,50 @@ end
 
 function appliance:recipe_aviable_input(inventory)
   local input = nil;
-  if (self.input_stack_size <= 1) then
-    local input_stack = inventory:get_stack(self.input_stack, 1)
-    local input_name = input_stack:get_name();
-    input = self.recipes.inputs[input_name];
-    if (input==nil) then
-      return nil, nil
-    end
-    if (input_stack:get_count()<input.inputs) then
-      return nil, nil
-    end
-  else
-    for index, check in pairs(self.recipes.inputs) do
-      local valid = true;
-      for ch_i, ch_val in pairs(check.inputs) do
-        local input_stack = inventory:get_stack(self.input_stack, ch_i);
-        local check_stack = ItemStack(ch_val);
-        if (input_stack:get_name()~=check_stack:get_name())  then
-          valid = false;
-          break;
+  if (self.have_input) then
+    if (self.input_stack_size <= 1) then
+      local input_stack = inventory:get_stack(self.input_stack, 1)
+      local input_name = input_stack:get_name();
+      input = self.recipes.inputs[input_name];
+      if (input==nil) then
+        return nil, nil
+      end
+      if (input_stack:get_count()<input.inputs) then
+        return nil, nil
+      end
+    else
+      for index, check in pairs(self.recipes.inputs) do
+        local valid = true;
+        for ch_i, ch_val in pairs(check.inputs) do
+          local input_stack = inventory:get_stack(self.input_stack, ch_i);
+          local check_stack = ItemStack(ch_val);
+          if (input_stack:get_name()~=check_stack:get_name())  then
+            valid = false;
+            break;
+          end
+          if (input_stack:get_count() < check_stack:get_count()) then
+            valid = false;
+            break;
+          end
         end
-        if (input_stack:get_count() < check_stack:get_count()) then
-          valid = false;
+        if valid then
+          input = check;
           break;
         end
       end
-      if valid then
-        input = check;
-        break;
+      
+      if (input == nil) then
+        return nil, nil
       end
-    end
-    
-    if (input == nil) then
-      return nil, nil
     end
   end
   
   local usage_name = nil;
-  if (self.use_stack) then
+  if (self.have_usage) then
     local usage_stack = inventory:get_stack(self.use_stack, 1)
     usage_name = usage_stack:get_name();
     
-    if (input.require_usage~=nil) then
+    if (input~=nil) and (input.require_usage~=nil) then
       if (not input.require_usage[usage_name]) then
         return nil, nil
       end
@@ -509,69 +408,6 @@ function appliance:recipe_inventory_can_take(pos, listname, index, stack, player
   return count;
 end
 
--- tube can insert
-function appliance:tube_can_insert (pos, node, stack, direction, owner)
-  if self.recipes then
-    if self.have_input then
-      if (self.input_stack_size <= 1) then
-        local input = self.recipes.inputs[stack:get_name()];
-        if input then
-          return self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil);
-        end
-      else
-        for index = 1,self.input_stack_size do
-          local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
-          if (can_insert~=0) then
-            return can_insert;
-          end
-        end
-      end
-    end
-    if self.have_usage then
-      local usage = self.recipes.usages[stack:get_name()];
-      if usage then
-        return self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil);
-      end
-    end
-  end
-  return false;
-end
-function appliance:tube_insert (pos, node, stack, direction, owner)
-  if self.recipes then
-    local meta = minetest.get_meta(pos);
-    local inv = meta:get_inventory();
-    
-    if self.have_input then
-      if (self.input_stack_size <= 1) then
-        local input = self.recipes.inputs[stack:get_name()];
-        if input then
-          return inv:add_item(self.input_stack, stack);
-        end
-      else
-        for index = 1,self.input_stack_size do
-          local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
-          if (can_insert~=0) then
-            local input_stack = inv:get_stack(self.input_stack,index);
-            local remind = input_stack:add_item(stack);
-            inv:set_stack(self.input_stack,index, input_stack);
-            return remind;
-          end
-        end
-      end
-    end
-    if self.have_usage then
-      local usages = self.recipes.usages[stack:get_name()];
-      if usages then
-        return inv:add_item(self.use_stack, stack);
-      end
-    end
-  end
-  
-  minetest.log("error", "Unexpected call of tube_insert function. Stack "..stack:to_string().." cannot be added to inventory.")
-  
-  return stack;
-end
-
 -- form spec
 
 function appliance:get_formspec(meta, production_percent, consumption_percent)
@@ -639,120 +475,121 @@ end
 
 -- Inactive/Active 
 
+function appliance:cb_activate(pos, meta)
+end
 function appliance:activate(pos, meta)
   local timer = minetest.get_node_timer(pos);
   if (not timer:is_started()) then
     timer:start(1)
-    self:power_need(meta)
+    self:power_need(pos, meta)
 	  meta:set_string(self.meta_infotext, self.node_description.." - active")
   end
+  self:call_activate(pos, meta)
+  self:cb_activate(pos, meta)
 end
-
+function appliance:cb_deactivate(pos, meta)
+end
 function appliance:deactivate(pos, meta)
   minetest.get_node_timer(pos):stop()
   self:update_formspec(meta, 0, 0, 0, 0)
   appliances.swap_node(pos, self.node_name_inactive);
-  self:power_idle(meta)
+  self:power_idle(pos, meta)
 	meta:set_string(self.meta_infotext, self.node_description.." - idle")
+  self:call_deactivate(pos, meta)
+  self:cb_deactivate(pos, meta)
+end
+function appliance:cb_running(pos, meta)
 end
 function appliance:running(pos, meta)
   appliances.swap_node(pos, self.node_name_active);
-  self:power_need(meta)
+  self:power_need(pos, meta)
 	meta:set_string(self.meta_infotext, self.node_description.." - producting")
+  self:call_running(pos, meta)
+  self:cb_running(pos, meta)
+end
+function appliance:cb_waiting(pos, meta)
 end
 function appliance:waiting(pos, meta)
   appliances.swap_node(pos, self.node_name_inactive);
-  self:power_idle(meta)
+  self:power_idle(pos, meta)
 	meta:set_string(self.meta_infotext, self.node_description.." - waiting")
+  self:call_waiting(pos, meta)
+  self:cb_waiting(pos, meta)
+end
+function appliance:cb_no_power(pos, meta)
 end
 function appliance:no_power(pos, meta)
   appliances.swap_node(pos, self.node_name_inactive);
-  self:power_need(meta)
+  self:power_need(pos, meta)
   meta:set_string(self.meta_infotext, self.node_description.." - unpowered")
+  self:call_no_power(pos, meta)
+  self:cb_no_power(pos, meta)
 end
 
 --
+function appliance:control_wait(pos, meta)
+  for control_name, control_data in pairs(self.control_data) do
+    local control = appliances.controls[control_name]
+    if control and control.control_wait then
+      if (control.control_wait(self, control_data, pos, meta)) then
+        return true;
+      end
+    end
+  end
+  return false;
+end
+--
 function appliance:need_wait(pos, meta, inv)
+  -- use_input, use_usage, need_wait
   -- have aviable production recipe?
   local use_input, use_usage = self:recipe_aviable_input(inv);
-  if (use_input==nil) then
+  if ((use_input==nil) and self.have_input) or (use_usage==nil) and self.have_usage then
     return use_input, use_usage, true;
   end
   
   -- space for production outputs?
-  if (#use_input.outputs==1) then
+  if (use_input) and (#use_input.outputs==1) then
     local output = self:recipe_select_output(use_input.outputs);
     if (not self:recipe_room_for_output(inv, output)) then
       return use_input, use_usage, true;
     end
   end
   
-  -- check for water pipe connection
-  if (self.need_water) then
-    if (self:have_water(pos)~=true) then
+  -- check for liquid connection
+  if (self.need_liquid) then
+    if (self:have_liquid(pos, meta)~=true) then
       return use_input, use_usage, true;
     end
+  end
+  
+  -- check for control
+  if (self.have_control) then
+    return use_input, use_usage, self:control_wait(pos, meta);
   end
   
   return use_input, use_usage, false;
 end
 function appliance:have_power(pos, meta, inv)
   -- check if node is powered
-  local speed = self:is_powered(meta)
+  local speed = self:is_powered(pos, meta)
   if (speed==0) then
     return speed, false;
   end
   return speed, true;
 end
 
--- appliance node callbacks for mesecons
-function appliance:cb_mesecons_effector_action_on(pos, node)
-  minetest.get_meta(pos):set_int("is_powered", 1);
-end
-function appliance:cb_mesecons_effector_action_off(pos, node)
-  minetest.get_meta(pos):set_int("is_powered", 0);
-end
-
--- appliance node callbacks for pipeworks
-function appliance:cb_tube_insert_object(pos, node, stack, direction, owner)
-  local stack = self:tube_insert(pos, node, stack, direction, owner);
-  
-  local meta = minetest.get_meta(pos);
-  local inv = meta:get_inventory();
-  local use_input, use_usage = self:recipe_aviable_input(inv)
-  if use_input then
-    self:activate(pos, meta);
-  end
-  
-  return stack;
-end
-function appliance:cb_tube_can_insert(pos, node, stack, direction, owner)
-  return self:tube_can_insert(pos, node, stack, direction, owner);
-end
-
--- appliance node callbacks for technic
-function appliance:cb_technic_run(pos, node)
-  local meta = minetest.get_meta(pos);
-  
-  meta:set_string("infotext", meta:get_string("technic_info"));
-end
-
 -- appliance node callbacks
 function appliance:cb_can_dig(pos)
   local meta = minetest.get_meta(pos)
+  if (not self:call_can_dig(pos, meta)) then
+    return false;
+  end
   local inv = meta:get_inventory()
   return inv:is_empty(self.input_stack) and inv:is_empty(self.output_stack)
 end
 
 function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
-  if appliances.have_pipeworks then
-    if self.need_water then
-      pipeworks.scan_for_pipe_objects(pos);
-    end
-    if self.have_tubes then
-      pipeworks.scan_for_tube_objects(pos);
-    end
-  end
+  self:call_after_dig_node(pos, oldnode, oldmetadata, digger)
   
   if self.have_usage then
     local stack = oldmetadata.inventory[self.use_stack][1];
@@ -765,20 +602,17 @@ function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
 end
       
 function appliance:cb_on_punch(pos, node, puncher, pointed_thing)
-  local eu_data = self.power_data["punch"];
-  if (eu_data~=nil) then
-    local meta = minetest.get_meta(pos);
-    meta:set_int("is_punched", 1);
-  end
+  self:call_on_punch(pos, node, puncher, pointed_thing)
 end
 
-function appliance:cb_on_blast(pos)
+function appliance:cb_on_blast(pos, intensity)
   local drops = {}
   default.get_inventory_drops(pos, self.input_stack, drops)
   default.get_inventory_drops(pos, self.use_stack, drops)
   default.get_inventory_drops(pos, self.output_stack, drops)
   table.insert(drops, self.node_name_inactive)
   minetest.remove_node(pos)
+  self:call_on_blast(pos, intensity)
   return drops
 end
 
@@ -830,7 +664,7 @@ end
 
 function appliance:after_timer_step(pos, meta, inv, production_time)
   local use_input, use_usage = self:recipe_aviable_input(inv)
-  if use_input then
+  if ((use_input~=nil) or (not self.have_input)) or ((use_usage~=nil) or (not self.have_usage)) then
     self:running(pos, meta);
     return true
   else
@@ -841,6 +675,9 @@ function appliance:after_timer_step(pos, meta, inv, production_time)
     end
     return false
   end
+end
+
+function appliance:cb_on_production(pos, meta, use_input, use_usage)
 end
 
 function appliance:cb_on_timer(pos, elapsed)
@@ -856,7 +693,12 @@ function appliance:cb_on_timer(pos, elapsed)
     if ((production_time>0) or (consumption_time>0)) then
       self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
     end
-    self:waiting(pos, meta);
+    if ((use_input==nil) and self.have_input) or (use_usage==nil) and self.have_usage then
+      self:deactivate(pos, meta);
+      return false;
+    else
+      self:waiting(pos, meta);
+    end
     return true;
   end
   
@@ -875,11 +717,13 @@ function appliance:cb_on_timer(pos, elapsed)
   -- time update
   local production_step_size = 0;
   local consumption_step_size = 0;
-  if self.recipes.usages then
+  if use_input and use_usage then
     production_step_size = self:recipe_step_size(use_usage.production_step_size*speed);
     consumption_step_size = self:recipe_step_size(speed*use_input.consumption_step_size);
-  else
+  elseif use_input then
     production_step_size = self:recipe_step_size(speed);
+  elseif use_usage then
+    consumption_step_size = self:recipe_step_size(speed);
   end
   
   production_time = production_time + production_step_size;
@@ -902,26 +746,35 @@ function appliance:cb_on_timer(pos, elapsed)
   end
   
   -- production done
-  if (production_time>=use_input.production_time) then
-    local output = self:recipe_select_output(use_input.outputs); 
-    if (not self:recipe_room_for_output(inv, output)) then
-      self:waiting(pos, meta);
-      return true;
+  if (use_input) then
+    if (production_time>=use_input.production_time) then
+      local output = self:recipe_select_output(use_input.outputs); 
+      if (not self:recipe_room_for_output(inv, output)) then
+        self:waiting(pos, meta);
+        return true;
+      end
+      self:recipe_output_to_stack(inv, output);
+      self:recipe_input_from_stack(inv, use_input);
+      production_time = 0;
+      meta:set_int("production_time", 0);
     end
-    self:recipe_output_to_stack(inv, output);
-    self:recipe_input_from_stack(inv, use_input);
-    production_time = 0;
-    meta:set_int("production_time", 0);
   end
   
   if use_usage then
-    self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
-    meta:set_int("production_time", production_time)
+    if (use_input) then
+      self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
+      meta:set_int("production_time", production_time)
+    else
+      self:update_formspec(meta, 0, 3, consumption_time, use_usage.consumption_time)
+    end
     meta:set_int("consumption_time", consumption_time)
-  else
+  elseif (use_input) then
     self:update_formspec(meta, production_time, use_input.production_time, 0, 1)
     meta:set_int("production_time", production_time)
   end
+  
+  -- cb_on_production callback
+  self:cb_on_production(pos, meta, use_input, use_usage);
   
   -- have aviable production recipe?
   local continue_timer = self:after_timer_step(pos, meta, inv, production_time);
@@ -954,7 +807,7 @@ function appliance:cb_on_metadata_inventory_put(pos, listname, index, stack, pla
   
   -- have aviable production recipe?
   local use_input, use_usage = self:recipe_aviable_input(inv)
-  if use_input then
+  if ((use_input~=nil) or (not self.have_input)) or ((use_usage~=nil) or (not self.have_usage)) then
     self:activate(pos, meta);
     return
   else
@@ -997,16 +850,11 @@ function appliance:cb_on_construct(pos)
       inv:set_size(self.output_stack, self.output_stack_size)
     end
   end
+  self:call_on_construct(pos, meta)
 end
     
 function appliance:cb_after_place_node(pos, placer, itemstack, pointed_thing)
-  if appliance.have_pipeworks then
-    pipeworks.scan_for_pipe_objects(pos);
-    pipeworks.scan_for_tube_objects(pos);
-  end
-  if (not appliance.have_mesecon) then
-    minetest.get_meta(pos):set_int("is_powered", 1);
-  end
+  self:call_after_place_node(pos, placer, itemstack, pointed_thing)
 end
 
 -- register appliance
@@ -1018,6 +866,21 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   
   local node_def_inactive = table.copy(shared_def);
   
+  -- fix data (supplies, controls)
+  self.extensions_data = {}
+  for power_name,power_data in pairs(self.power_data) do
+    self.extensions_data[power_name] = power_data;
+  end
+  for liquid_name,liquid_data in pairs(self.liquid_data) do
+    self.extensions_data[liquid_name] = liquid_data;
+  end
+  for item_name,item_data in pairs(self.item_data) do
+    self.extensions_data[item_name] = item_data;
+  end
+  for control_name,control_data in pairs(self.control_data) do
+    self.extensions_data[control_name] = control_data;
+  end
+  
   -- use .."" to prevent string object share
   node_def_inactive.description = self.node_description.."";
   if (self.node_help) then
@@ -1025,91 +888,9 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   end
   node_def_inactive.short_description = self.node_description.."";
   
-  local need_power = false;
-  local technic_power = false;
-  local mesecons_power = false;
-  if self.power_data then
-    need_power = true;
-  end
-  if appliances.have_technic then
-    if self.power_data then
-      if self.power_data["LV"] then
-        node_def_inactive.groups.technic_machine = 1;
-        node_def_inactive.groups.technic_lv = 1;
-        technic_power = true;
-      end
-      if self.power_data["MV"] then
-        node_def_inactive.groups.technic_machine = 1;
-        node_def_inactive.groups.technic_mv = 1;
-        technic_power = true;
-      end
-      if self.power_data["HV"] then
-        node_def_inactive.groups.technic_machine = 1;
-        node_def_inactive.groups.technic_hv = 1;
-        technic_power = true;
-      end
-    end
-  end
-  if appliances.have_mesecons then
-    if self.power_data then
-      if self.power_data["no_technic"] then
-        if (not appliances.have_technic) then
-          mesecons_power = true;
-        end
-      end
-      if self.power_data["mesecons"] then
-        mesecons_power = true;
-      end
-    end
-  end
-  if technic_power then
-    -- power connect (technic)
-    node_def_inactive.connect_sides = {"back"};
-    
-    node_def_inactive.technic_run = function (pos, node)
-        self:cb_technic_run(pos, node);
-      end
-    
-    self.meta_infotext = "technic_info";
-  end
-  if mesecons_power then
-    -- mesecon action
-    node_def_inactive.mesecons =
-      {
-        effector = {
-          action_on = function (pos, node)
-            self:cb_mesecons_effector_action_off(pos, node);
-          end,
-          action_off = function (pos, node)
-            self:cb_mesecons_effector_action_off(pos, node);
-          end,
-        }
-      };
-  end
-  if self.need_water then
-    -- pipe connect
-    
-    node_def_inactive.pipe_connections = {}; 
-    node_def_inactive.pipe_connections[self.pipe_side] = true;
-    node_def_inactive.pipe_connections[self.pipe_side.."_param2"] = pipe_connections[self.pipe_side];
-  end
-  if appliances.have_pipeworks then
-    if self.have_tubes then
-      node_def_inactive.groups.tubedevice = 1;
-      node_def_inactive.groups.tubedevice_receiver = 1;
-      node_def_inactive.tube =
-        {
-          insert_object = function(pos, node, stack, direction, owner)
-            return self:cb_tube_insert_object(pos, node, stack, direction, owner);
-            end,
-          can_insert = function(pos, node, stack, direction, owner)
-              return self:cb_tube_can_insert(pos, node, stack, direction, owner);
-            end,
-          connect_sides = {left = 1, right = 1}, 
-          input_inventory = self.output_stack,
-        };
-    end
-  end
+  self:call_update_node_def(node_def_inactive)
+  self:cb_after_update_node_def(node_def_inactive)
+  
   node_def_inactive.can_dig = function (pos, player)
       return self:cb_can_dig(pos, player);
     end
@@ -1155,6 +936,11 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   
   node_def_active.groups.not_in_creative_inventory = 1;
   
+  self:call_update_node_inactive_def(node_def_inactive);
+  self:cb_after_update_node_inactive_def(node_def_inactive)
+  self:call_update_node_active_def(node_def_active);
+  self:cb_after_update_node_active_def(node_def_inactive)
+  
   if inactive_def then
     for key, value in pairs(inactive_def) do
       node_def_inactive[key] = value;
@@ -1169,24 +955,10 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   minetest.register_node(self.node_name_inactive, node_def_inactive);
   minetest.register_node(self.node_name_active, node_def_active);
   
-  if appliances.have_technic then
-    if node_def_inactive.groups.technic_lv then
-      technic.register_machine("LV", self.node_name_inactive, technic.receiver)
-      technic.register_machine("LV", self.node_name_active, technic.receiver)
-    end
-    if node_def_inactive.groups.technic_mv then
-      technic.register_machine("MV", self.node_name_inactive, technic.receiver)
-      technic.register_machine("MV", self.node_name_active, technic.receiver)
-    end
-    if node_def_inactive.groups.technic_hv then
-      technic.register_machine("HV", self.node_name_inactive, technic.receiver)
-      technic.register_machine("HV", self.node_name_active, technic.receiver)
-    end
-  end
-  
+  self:call_after_register_node()
 end
 
--- register recipes to unified_inventory
+-- register recipes to unified_inventory/craftguide/i3
 function appliance:register_recipes(inout_type, usage_type)
   if (self.input_stack_size<=1) then
     for input, recipe in pairs(self.recipes.inputs) do
@@ -1240,4 +1012,163 @@ function appliance:register_recipes(inout_type, usage_type)
   end
 end
 
+-- extensions callbacks
+function appliance:call_activate(pos, meta)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.activate then
+      extension.activate(self, extension_data, pos, meta)
+    end
+  end
+end
+function appliance:call_deactivate(pos, meta)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.deactivate then
+      extension.deactivate(self, extension_data, pos, meta)
+    end
+  end
+end
+function appliance:call_running(pos, meta)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.running then
+      extension.running(self, extension_data, pos, meta)
+    end
+  end
+end
+function appliance:call_waiting(pos, meta)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.waiting then
+      extension.waiting(self, extension_data, pos, meta)
+    end
+  end
+end
+function appliance:call_no_power(pos, meta)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.no_power then
+      extension.no_power(self, extension_data, pos, meta)
+    end
+  end
+end
+
+function appliance:call_update_node_def(node_def)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.update_node_def then
+      extension.update_node_def(self, extension_data, node_def)
+    end
+  end
+end
+function appliance:cb_after_update_node_def(node_def)
+end
+
+function appliance:call_update_node_inactive_def(node_def)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.update_node_inactive_def then
+      extension.update_node_inactive_def(self, extension_data, node_def)
+    end
+  end
+end
+function appliance:cb_after_update_node_inactive_def(node_def)
+end
+
+function appliance:call_update_node_active_def(node_def)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.update_node_active_def then
+      extension.update_node_active_def(self, extension_data, node_def)
+    end
+  end
+end
+function appliance:cb_after_update_node_active_def(node_def)
+end
+
+function appliance:call_after_register_node()
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.after_register_node then
+      extension.after_register_node(self, extension_data)
+    end
+  end
+end
+
+function appliance:call_on_construct(pos, meta)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.on_construct then
+      extension.on_construct(self, extension_data, pos, meta)
+    end
+  end
+end
+
+function appliance:call_on_destruct(pos, meta)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.on_destruct then
+      extension.on_destruct(self, extension_data, pos, meta)
+    end
+  end
+end
+
+function appliance:call_after_destruct(pos, oldnode)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.after_destruct then
+      extension.after_destruct(self, extension_data, pos, oldnode)
+    end
+  end
+end
+
+function appliance:call_after_place_node(pos, placer, itemstack, pointed_thing)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.after_place_node then
+      extension.after_place_node(self, extension_data, pos, placer, itemstack, pointed_thing)
+    end
+  end
+end
+
+function appliance:call_after_dig_node(pos, oldnode, oldmetadata, digger)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.after_dig_node then
+      extension.after_dig_node(self, extension_data, pos, oldnode, oldmetadata, digger)
+    end
+  end
+end
+
+function appliance:call_can_dig(pos, player)
+  local can_dig = true;
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.can_dig then
+      if (not extension.can_dig(self, extension_data, pos, player)) then
+        can_dig = false;
+      end
+    end
+  end
+  return can_dig;
+end
+
+function appliance:call_on_punch(pos, node, puncher, pointed_thing)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.on_punch then
+      extension.on_punch(self, extension_data, pos, node, puncher, pointed_thing)
+    end
+  end
+end
+
+function appliance:call_on_blast(pos, intensity)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.on_blast then
+      extension.on_blast(self, extension_data, pos, intensity)
+    end
+  end
+end
 
