@@ -478,6 +478,39 @@ function appliance:update_formspec(meta, production_time, production_goal, consu
 end
 
 -- Inactive/Active 
+function appliance:cb_play_sound(pos, meta, old_state, new_state)
+  --print("Sound from "..old_state.." to "..new_state)
+  local sound_key = old_state.."_"..new_state;
+  local sound = self.sounds[sound_key] or self.sounds[new_state]
+  if sound then
+    local sound_time = meta:get_int("sound_time");
+    local play_sound = true;
+    if (sound.repeat_timer~=nil) then
+      if ((sound_time%sound.repeat_timer)~=0) then
+        play_sound = false;
+      end
+      meta:set_int("sound_time", sound_time+1)
+    else
+      meta:set_int("sound_time", 0)
+    end
+    if play_sound then
+      local param = table.copy(sound.sound_param);
+      param.pos = pos
+      minetest.sound_play(sound.sound, param, true);
+    end
+  end
+end
+
+function appliance:get_state(meta)
+  return meta:get("state") or "idle";
+end
+function appliance:set_state(meta, state)
+  return meta:set_string("state", state);
+end
+function appliance:update_state(pos, meta, state)
+  self:cb_play_sound(pos, meta, self:get_state(meta), state);
+  self:set_state(meta, state);
+end
 
 function appliance:cb_activate(pos, meta)
 end
@@ -490,6 +523,8 @@ function appliance:activate(pos, meta)
   end
   self:call_activate(pos, meta)
   self:cb_activate(pos, meta)
+  
+  self:update_state(pos, meta, "active")
 end
 function appliance:cb_deactivate(pos, meta)
 end
@@ -501,6 +536,8 @@ function appliance:deactivate(pos, meta)
 	meta:set_string(self.meta_infotext, self.node_description.." - idle")
   self:call_deactivate(pos, meta)
   self:cb_deactivate(pos, meta)
+  
+  self:update_state(pos, meta, "idle")
 end
 function appliance:cb_running(pos, meta)
 end
@@ -510,6 +547,7 @@ function appliance:running(pos, meta)
 	meta:set_string(self.meta_infotext, self.node_description.." - producting")
   self:call_running(pos, meta)
   self:cb_running(pos, meta)
+  self:update_state(pos, meta, "running")
 end
 function appliance:cb_waiting(pos, meta)
 end
@@ -519,6 +557,7 @@ function appliance:waiting(pos, meta)
 	meta:set_string(self.meta_infotext, self.node_description.." - waiting")
   self:call_waiting(pos, meta)
   self:cb_waiting(pos, meta)
+  self:update_state(pos, meta, "waiting")
 end
 function appliance:cb_no_power(pos, meta)
 end
@@ -528,6 +567,7 @@ function appliance:no_power(pos, meta)
   meta:set_string(self.meta_infotext, self.node_description.." - unpowered")
   self:call_no_power(pos, meta)
   self:cb_no_power(pos, meta)
+  self:update_state(pos, meta, "nopower")
 end
 
 --
@@ -690,7 +730,6 @@ function appliance:cb_on_timer(pos, elapsed)
   
   local production_time = meta:get_int("production_time") or 0;
   local consumption_time = meta:get_int("consumption_time") or 0;
-  local sound_time = meta:get_int("sound_time") or 0;
   
   local use_input, use_usage, need_wait = self:need_wait(pos, meta, inv);
   if need_wait then

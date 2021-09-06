@@ -34,21 +34,26 @@ if appliances.have_pipeworks then
   local liquid_supply = 
     {
       -- have_liquid function
-      have_liquid = function(liquid_data, pos)
-          local node = minetest.get_node({x=pos.x, y=pos.y+1, z=pos.z});
-          if node then
+      have_liquid = function(self, liquid_data, pos)
+          for _,side in pairs(self.liquid_connect_sides) do
+            local side_pos = appliances.get_side_pos(pos, side);
+            local node = minetest.get_node(side_pos);
             if (pipeworks_pipe_loaded[node.name]) then
               return true;
             end
             if (pipeworks_pipe_with_facedir_loaded[node.name]) then
-              if (minetest.facedir_to_dir(node.param2).y~=0) then
+              local facedir = minetest.facedir_to_dir(node.param2%32);
+              local diff = vector.substract(pos, side_pos);
+              if (   ((facedir.x~=0) and (diff.x~=0))
+                  or ((facedir.y~=0) and (diff.y~=0))
+                  or ((facedir.z~=0) and (diff.z~=0))) then
                 return true;
               end
             end
           end
           return false;
         end,
-      update_node_def = function(liquid_data, node_def)
+      update_node_def = function(self, liquid_data, node_def)
           node_def.pipe_connections = {}; 
           for _,pipe_side in pairs(self.liquid_connect_sides) do
             node_def.pipe_connections[pipe_side] = true;
