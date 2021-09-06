@@ -25,6 +25,10 @@ appliance.use_stack_size = 1;
 appliance.output_stack = "output";
 appliance.output_stack_size = 4;
 
+-- sounds
+appliance.sounds = {};
+
+-- connections
 appliance.items_connect_sides = {"right", "left"}; -- right, left, front, back, top, bottom
 
 appliance.liquid_connect_sides = {"top"}; -- right, left, front, back, top, bottom

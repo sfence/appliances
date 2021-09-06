@@ -59,12 +59,6 @@ if appliances.have_mesecons then
           end
           return 0;
         end,
-      power_need = function (self, power_supply, pos, meta)
-          meta:set_int("LV_EU_demand", power_supply.demand)
-        end,
-      power_idle = function (self, power_supply, pos, meta)
-          meta:set_int("LV_EU_demand", 0)
-        end,
       update_node_def = function (self, power_supply, node_def)
           node_def.effector = {
             action_on = function (pos, node)
@@ -128,7 +122,9 @@ if appliances.have_technic then
             local meta = minetest.get_meta(pos);
             meta:set_string("infotext", meta:get_string("technic_info"));
           end
-          node_def.technic_no_network = function (pos, node)
+          node_def.technic_on_disable = function (pos, node)
+            local meta = minetest.get_meta(pos);
+            meta:set_string("infotext", meta:get_string("technic_info"));
           end
         end,
       after_register_node = function (self, power_data)
@@ -181,7 +177,9 @@ if appliances.have_technic then
             local meta = minetest.get_meta(pos);
             meta:set_string("infotext", meta:get_string("technic_info"));
           end
-          node_def.technic_no_network = function (pos, node)
+          node_def.technic_on_disable = function (pos, node)
+            local meta = minetest.get_meta(pos);
+            meta:set_string("infotext", meta:get_string("technic_info"));
           end
         end,
       after_register_node = function (self, power_data)
@@ -234,7 +232,9 @@ if appliances.have_technic then
             local meta = minetest.get_meta(pos);
             meta:set_string("infotext", meta:get_string("technic_info"));
           end
-          node_def.technic_no_network = function (pos, node)
+          node_def.technic_on_disable = function (pos, node)
+            local meta = minetest.get_meta(pos);
+            meta:set_string("infotext", meta:get_string("technic_info"));
           end
         end,
       after_register_node = function (self, power_data)

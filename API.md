@@ -37,6 +37,30 @@ See example folder for appliance examples.
 
 Some power supply should be always registered.
 
+## Appliance object fields
+
+### Field sounds
+
+Usable 
+
+	sounds = {
+		running = {
+			sound = <SimpleSoundSpec>,
+			sound_param = {},
+			repeat_timer = 5,
+		},
+		waiting = {
+			sound = <SimpleSoundSpec>,
+			sound_param = {}.
+		},
+		activate = {
+			sound = <SimpleSoundSpec>,
+			sound_param = {}.
+			repeat_timer = 0,
+		},
+		
+	}
+
 ## Appliance object functions
 
 Methods of object appliances.appliance.
