@@ -486,10 +486,12 @@ function appliance:cb_play_sound(pos, meta, old_state, new_state)
     local sound_time = meta:get_int("sound_time");
     local play_sound = true;
     if (sound.repeat_timer~=nil) then
-      if ((sound_time%sound.repeat_timer)~=0) then
+      if (sound_time>0) then
         play_sound = false;
+        meta:set_int("sound_time", sound_time-1)
+      else
+        meta:set_int("sound_time", sound.repeat_timer)
       end
-      meta:set_int("sound_time", sound_time+1)
     else
       meta:set_int("sound_time", 0)
     end
