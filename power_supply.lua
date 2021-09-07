@@ -18,7 +18,7 @@ if true then
           return power_supply.run_speed;
         end,
     };
-  appliances.add_power_supply("time", power_supply)
+  appliances.add_power_supply("time_power", power_supply)
 end
 
 -- punch
@@ -45,7 +45,7 @@ if true then
           
         end,
     };
-  appliances.add_power_supply("punch", power_supply)
+  appliances.add_power_supply("punch_power", power_supply)
 end
 
 -- mesecons
@@ -69,15 +69,11 @@ if appliances.have_mesecons then
             end,
           }
         end,
-      update_node_inactive_def = function (self, power_supply, node_def)
-        end,
-      update_node_active_def = function (self, power_supply, node_def)
-        end,
       after_place_node = function (self, power_supply, pos, meta)
           minetest.get_meta(pos):set_int("is_powered", 0);
         end,
     };
-  appliances.add_power_supply("mesecons", power_supply)
+  appliances.add_power_supply("mesecons_power", power_supply)
 end
 
 -- technic

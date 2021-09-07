@@ -45,6 +45,7 @@ function appliance:have_liquid(pos, meta)
 end
 
 appliance.power_connect_sides = {"back"}; -- right, left, front, back, top, bottom
+appliance.control_connect_sides = {"right", "left", "front", "back", "top", "bottom"}; -- right, left, front, back, top, bottom
 
 appliance.power_data = {};
 appliance.liquid_data = {};
@@ -479,7 +480,7 @@ end
 
 -- Inactive/Active 
 function appliance:cb_play_sound(pos, meta, old_state, new_state)
-  --print("Sound from "..old_state.." to "..new_state)
+  --print(self.node_name_inactive.." sound from "..old_state.." to "..new_state)
   local sound_key = old_state.."_"..new_state;
   local sound = self.sounds[sound_key] or self.sounds[new_state]
   if sound then
@@ -522,11 +523,12 @@ function appliance:activate(pos, meta)
     timer:start(1)
     self:power_need(pos, meta)
 	  meta:set_string(self.meta_infotext, self.node_description.." - active")
+    
+    self:call_activate(pos, meta)
+    self:cb_activate(pos, meta)
+    
+    self:update_state(pos, meta, "active")
   end
-  self:call_activate(pos, meta)
-  self:cb_activate(pos, meta)
-  
-  self:update_state(pos, meta, "active")
 end
 function appliance:cb_deactivate(pos, meta)
 end
