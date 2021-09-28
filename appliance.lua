@@ -520,6 +520,9 @@ end
 function appliance:activate(pos, meta)
   local timer = minetest.get_node_timer(pos);
   if (not timer:is_started()) then
+    if self.node_name_waiting then
+      appliances.swap_node(pos, self.node_name_waiting);
+    end
     timer:start(1)
     self:power_need(pos, meta)
 	  meta:set_string(self.meta_infotext, self.node_description.." - active")
@@ -556,7 +559,11 @@ end
 function appliance:cb_waiting(pos, meta)
 end
 function appliance:waiting(pos, meta)
-  appliances.swap_node(pos, self.node_name_inactive);
+  if self.node_name_waiting then
+    appliances.swap_node(pos, self.node_name_waiting);
+  else
+    appliances.swap_node(pos, self.node_name_inactive);
+  end
   self:power_idle(pos, meta)
 	meta:set_string(self.meta_infotext, self.node_description.." - waiting")
   self:call_waiting(pos, meta)
@@ -566,64 +573,16 @@ end
 function appliance:cb_no_power(pos, meta)
 end
 function appliance:no_power(pos, meta)
-  appliances.swap_node(pos, self.node_name_inactive);
+  if self.node_name_waiting then
+    appliances.swap_node(pos, self.node_name_waiting);
+  else
+    appliances.swap_node(pos, self.node_name_inactive);
+  end
   self:power_need(pos, meta)
   meta:set_string(self.meta_infotext, self.node_description.." - unpowered")
   self:call_no_power(pos, meta)
   self:cb_no_power(pos, meta)
   self:update_state(pos, meta, "nopower")
-end
-
---
-function appliance:control_wait(pos, meta)
-  for control_name, control_data in pairs(self.control_data) do
-    local control = appliances.controls[control_name]
-    if control and control.control_wait then
-      if (control.control_wait(self, control_data, pos, meta)) then
-        return true;
-      end
-    end
-  end
-  return false;
-end
---
-function appliance:need_wait(pos, meta, inv)
-  -- use_input, use_usage, need_wait
-  -- have aviable production recipe?
-  local use_input, use_usage = self:recipe_aviable_input(inv);
-  if ((use_input==nil) and self.have_input) or (use_usage==nil) and self.have_usage then
-    return use_input, use_usage, true;
-  end
-  
-  -- space for production outputs?
-  if (use_input) and (#use_input.outputs==1) then
-    local output = self:recipe_select_output(use_input.outputs);
-    if (not self:recipe_room_for_output(inv, output)) then
-      return use_input, use_usage, true;
-    end
-  end
-  
-  -- check for liquid connection
-  if (self.need_liquid) then
-    if (self:have_liquid(pos, meta)~=true) then
-      return use_input, use_usage, true;
-    end
-  end
-  
-  -- check for control
-  if (self.have_control) then
-    return use_input, use_usage, self:control_wait(pos, meta);
-  end
-  
-  return use_input, use_usage, false;
-end
-function appliance:have_power(pos, meta, inv)
-  -- check if node is powered
-  local speed = self:is_powered(pos, meta)
-  if (speed==0) then
-    return speed, false;
-  end
-  return speed, true;
 end
 
 -- appliance node callbacks
@@ -664,95 +623,214 @@ function appliance:cb_on_blast(pos, intensity)
   return drops
 end
 
-function appliance:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time)
+-- callbacks used in on_timer
+--
+function appliance:control_wait(timer_step)
+  for control_name, control_data in pairs(self.control_data) do
+    local control = appliances.controls[control_name]
+    if control and control.control_wait then
+      if (control.control_wait(self, control_data, timer_step.pos, timer_step.meta)) then
+        return true;
+      end
+    end
+  end
+  return false;
+end
+--
+function appliance:need_wait(timer_step)
+  -- use_input, use_usage, need_wait
+  -- have aviable production recipe?
+  local use_input, use_usage = self:recipe_aviable_input(timer_step.inv);
+  if ((use_input==nil) and self.have_input) or (use_usage==nil) and self.have_usage then
+    return use_input, use_usage, true;
+  end
+  
+  -- space for production outputs?
+  if (use_input) and (#use_input.outputs==1) then
+    local output = self:recipe_select_output(use_input.outputs);
+    if (not self:recipe_room_for_output(timer_step.inv, output)) then
+      return use_input, use_usage, true;
+    end
+  end
+  
+  -- check for liquid connection
+  if (self.need_liquid) then
+    if (self:have_liquid(timer_step.pos, timer_step.meta)~=true) then
+      return use_input, use_usage, true;
+    end
+  end
+  
+  -- check for control
+  if (self.have_control) then
+    return use_input, use_usage, self:control_wait(timer_step);
+  end
+  
+  return use_input, use_usage, false;
+end
+function appliance:have_power(timer_step)
+  -- check if node is powered
+  local speed = self:is_powered(timer_step.pos, timer_step.meta)
+  if (speed==0) then
+    return speed, false;
+  end
+  return speed, true;
+end
+
+
+function appliance:interrupt_production(timer_step)
   if (self.stoppable_production==false) then
     if (production_time>0) then
-      if use_input then
-        if use_input.losts then
-          local output = self:recipe_select_output(use_input.losts);
-          self:recipe_output_to_stack_or_drop(pos, inv, output);
+      if timer_step.use_input then
+        if timer_step.use_input.losts then
+          local output = self:recipe_select_output(timer_step.use_input.losts);
+          self:recipe_output_to_stack_or_drop(timer_step.pos, timer_step.inv, output);
         end
-        self:recipe_input_from_stack(inv, use_input);
+        self:recipe_input_from_stack(inv, timer_step.use_input);
       end
-      meta:set_int("production_time", 0);
-      production_time = 0;
+      timer_step.meta:set_int("production_time", 0);
+      timer_step.production_time = 0;
     end
   end
   
   if (self.stoppable_consumption==false) then
-    if (consumption_time>0) then
-      if use_usage then
-        local output = self:recipe_select_output(use_usage.outputs); 
-        if use_usage.losts then
-          output = self:recipe_select_output(use_usage.losts);
+    if (timer_step.consumption_time>0) then
+      if timer_step.use_usage then
+        local output = self:recipe_select_output(timer_step.use_usage.outputs); 
+        if timer_step.use_usage.losts then
+          output = self:recipe_select_output(timer_step.use_usage.losts);
         end
-        self:recipe_output_to_stack_or_drop(pos, inv, output);
-        self:recipe_usage_from_stack(inv, use_usage);
+        self:recipe_output_to_stack_or_drop(timer_step.pos, timer_step.inv, output);
+        self:recipe_usage_from_stack(timer_step.inv, timer_step.use_usage);
       end
-      meta:set_int("consumption_time", 0);
-      consumption_time = 0;
+      timer_step.meta:set_int("consumption_time", 0);
+      timer_step.consumption_time = 0;
     end
   end
   
   local target_production_time = 1;
   local target_consumption_time = 1;
-  if use_input then
-    target_production_time = use_input.production_time;
+  if timer_step.use_input then
+    target_production_time = timer_step.use_input.production_time;
   else
-    production_time = 0;
+    timer_step.production_time = 0;
   end
-  if use_usage then
-    target_consumption_time = use_usage.consumption_time;
+  if timer_step.use_usage then
+    target_consumption_time = timer_step.use_usage.consumption_time;
   else
-    consumption_time = 0;
+    timer_step.consumption_time = 0;
   end
   
-  self:update_formspec(meta, production_time, target_production_time, consumption_time, target_consumption_time);
+  self:update_formspec(timer_step.meta, timer_step.production_time, target_production_time, timer_step.consumption_time, target_consumption_time);
 end
 
-function appliance:after_timer_step(pos, meta, inv, production_time)
-  local use_input, use_usage = self:recipe_aviable_input(inv)
+function appliance:after_timer_step(timer_step)
+  local use_input, use_usage = self:recipe_aviable_input(timer_step.inv)
   if ((use_input~=nil) or (not self.have_input)) or ((use_usage~=nil) or (not self.have_usage)) then
-    self:running(pos, meta);
+    self:running(timer_step.pos, timer_step.meta);
     return true
   else
-    if (production_time) then
-      self:waiting(pos, meta)
+    if (timer_step.production_time) then
+      self:waiting(timer_step.pos, timer_step.meta)
     else
-      self:deactivate(pos, meta)
+      self:deactivate(timer_step.pos, timer_step.meta)
     end
     return false
   end
 end
 
-function appliance:cb_on_production(pos, meta, use_input, use_usage)
+function appliance:time_update(timer_step)
+  timer_step.production_step_size = 0;
+  timer_step.consumption_step_size = 0;
+  if timer_step.use_input and timer_step.use_usage then
+    timer_step.production_step_size = self:recipe_step_size(timer_step.use_usage.production_step_size*timer_step.speed);
+    timer_step.consumption_step_size = self:recipe_step_size(timer_step.speed*timer_step.use_input.consumption_step_size);
+  elseif timer_step.use_input then
+    timer_step.production_step_size = self:recipe_step_size(timer_step.speed);
+  elseif timer_step.use_usage then
+    timer_step.consumption_step_size = self:recipe_step_size(timer_step.speed);
+  end
+  
+  timer_step.production_time = timer_step.production_time + timer_step.production_step_size;
+  timer_step.consumption_time = timer_step.consumption_time + timer_step.consumption_step_size;
+end
+    
+function appliance:remove_used_item(timer_step)
+  if (timer_step.consumption_time>=timer_step.use_usage.consumption_time) then
+    local output = self:recipe_select_output(timer_step.use_usage.outputs); 
+    if (not self:recipe_room_for_output(timer_step.inv, output)) then
+      self:interrupt_production(timer_step);
+      self:waiting(timer_step.pos, timer_step.meta);
+      return true;
+    end
+    self:recipe_output_to_stack(timer_step.inv, output);
+    self:recipe_usage_from_stack(timer_step.inv, timer_step.use_usage);
+    timer_step.consumption_time = 0;
+    timer_step.meta:set_int("consumption_time", 0);
+  end
+end
+
+function appliance:production_done(timer_step)
+  if (timer_step.production_time>=timer_step.use_input.production_time) then
+    local output = self:recipe_select_output(timer_step.use_input.outputs); 
+    if (not self:recipe_room_for_output(timer_step.inv, output)) then
+      self:waiting(timer_step.pos, timer_step.meta);
+      return true;
+    end
+    self:recipe_output_to_stack(timer_step.inv, output);
+    self:recipe_input_from_stack(timer_step.inv, timer_step.use_input);
+    timer_step.production_time = 0;
+    timer_step.meta:set_int("production_time", 0);
+  end
+end
+
+function appliance:update_meta_formspec(timer_step)
+  if timer_step.use_usage then
+    if (timer_step.use_input) then
+      self:update_formspec(timer_step.meta, timer_step.production_time, timer_step.use_input.production_time, timer_step.consumption_time, timer_step.use_usage.consumption_time)
+      timer_step.meta:set_int("production_time", timer_step.production_time)
+    else
+      self:update_formspec(timer_step.meta, 0, 3, timer_step.consumption_time, timer_step.use_usage.consumption_time)
+    end
+    timer_step.meta:set_int("consumption_time", timer_step.consumption_time)
+  elseif (timer_step.use_input) then
+    self:update_formspec(timer_step.meta, timer_step.production_time, timer_step.use_input.production_time, 0, 1)
+    timer_step.meta:set_int("production_time", timer_step.production_time)
+  end
+end
+
+function appliance:cb_on_production(timer_step)
 end
 
 function appliance:cb_on_timer(pos, elapsed)
   local meta = minetest.get_meta(pos);
-  local inv = meta:get_inventory();
+  local timer_step = {
+    pos = pos,
+    meta = meta,
+    inv = meta:get_inventory(),
+    production_time = meta:get_int("production_time"),
+    consumption_time = meta:get_int("consumption_time"),
+  }
   
-  local production_time = meta:get_int("production_time") or 0;
-  local consumption_time = meta:get_int("consumption_time") or 0;
-  
-  local use_input, use_usage, need_wait = self:need_wait(pos, meta, inv);
+  local need_wait;
+  timer_step.use_input, timer_step.use_usage, need_wait = self:need_wait(timer_step);
   if need_wait then
-    if ((production_time>0) or (consumption_time>0)) then
-      self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
+    if ((timer_step.production_time>0) or (timer_step.consumption_time>0)) then
+      self:interrupt_production(timer_step);
     end
-    if ((use_input==nil) and self.have_input) or (use_usage==nil) and self.have_usage then
-      self:deactivate(pos, meta);
+    if ((timer_step.use_input==nil) and self.have_input) or (timer_step.use_usage==nil) and self.have_usage then
+      self:deactivate(timer_step.pos, timer_step.meta);
       return false;
     else
-      self:waiting(pos, meta);
+      self:waiting(timer_step.pos, timer_step.meta);
     end
     return true;
   end
   
   -- check if node is powered
-  local speed, have_power = self:have_power(pos, meta, inv)
+  local have_power;
+  timer_step.speed, have_power = self:have_power(timer_step)
   if (not have_power) then
-    self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
+    self:interrupt_production(timer_step);
     self:no_power(pos, meta);
     return true;
   end
@@ -762,71 +840,34 @@ function appliance:cb_on_timer(pos, elapsed)
   end
   
   -- time update
-  local production_step_size = 0;
-  local consumption_step_size = 0;
-  if use_input and use_usage then
-    production_step_size = self:recipe_step_size(use_usage.production_step_size*speed);
-    consumption_step_size = self:recipe_step_size(speed*use_input.consumption_step_size);
-  elseif use_input then
-    production_step_size = self:recipe_step_size(speed);
-  elseif use_usage then
-    consumption_step_size = self:recipe_step_size(speed);
-  end
-  
-  production_time = production_time + production_step_size;
-  consumption_time = consumption_time + consumption_step_size;
+  self:time_update(timer_step);
   
   -- remove used item
-  if use_usage then
-    if (consumption_time>=use_usage.consumption_time) then
-      local output = self:recipe_select_output(use_usage.outputs); 
-      if (not self:recipe_room_for_output(inv, output)) then
-        self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
-        self:waiting(pos, meta);
-        return true;
-      end
-      self:recipe_output_to_stack(inv, output);
-      self:recipe_usage_from_stack(inv, use_usage);
-      consumption_time = 0;
-      meta:set_int("consumption_time", 0);
+  if timer_step.use_usage then
+    local ret = self:remove_used_item(timer_step);
+    if ret then
+      return ret
     end
   end
   
   -- production done
-  if (use_input) then
-    if (production_time>=use_input.production_time) then
-      local output = self:recipe_select_output(use_input.outputs); 
-      if (not self:recipe_room_for_output(inv, output)) then
-        self:waiting(pos, meta);
-        return true;
-      end
-      self:recipe_output_to_stack(inv, output);
-      self:recipe_input_from_stack(inv, use_input);
-      production_time = 0;
-      meta:set_int("production_time", 0);
+  if (timer_step.use_input) then
+    local ret = self:production_done(timer_step);
+    if ret then
+      return ret;
     end
   end
   
-  if use_usage then
-    if (use_input) then
-      self:update_formspec(meta, production_time, use_input.production_time, consumption_time, use_usage.consumption_time)
-      meta:set_int("production_time", production_time)
-    else
-      self:update_formspec(meta, 0, 3, consumption_time, use_usage.consumption_time)
-    end
-    meta:set_int("consumption_time", consumption_time)
-  elseif (use_input) then
-    self:update_formspec(meta, production_time, use_input.production_time, 0, 1)
-    meta:set_int("production_time", production_time)
-  end
+  -- update meta and formspec
+  self:update_meta_formspec(timer_step);
   
   -- cb_on_production callback
-  self:cb_on_production(pos, meta, use_input, use_usage);
+  self:cb_on_production(timer_step);
   
   -- have aviable production recipe?
-  local continue_timer = self:after_timer_step(pos, meta, inv, production_time);
+  local continue_timer = self:after_timer_step(timer_step);
   if (continue_timer==false) then
-    self:interrupt_production(pos, meta, inv, use_input, use_usage, production_time, consumption_time);
+    self:interrupt_production(timer_step);
   end
   return continue_timer;
 end
@@ -905,7 +946,7 @@ function appliance:cb_after_place_node(pos, placer, itemstack, pointed_thing)
 end
 
 -- register appliance
-function appliance:register_nodes(shared_def, inactive_def, active_def)
+function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_def)
   -- default connection of pipe on top
   -- default connection of tubes from sides
   -- default connection of power from back
@@ -931,7 +972,11 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   -- use .."" to prevent string object share
   node_def_inactive.description = self.node_description.."";
   if (self.node_help) then
-    node_def_inactive.description = self.node_description.."\n"..self.node_help;
+    if appliances.have_tt then
+      node_def_inactive._tt_help = self.node_help.."";
+    else
+      node_def_inactive.description = self.node_description.."\n"..self.node_help;
+    end
   end
   node_def_inactive.short_description = self.node_description.."";
   
@@ -973,6 +1018,10 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
     end
   
   local node_def_active = table.copy(node_def_inactive);
+  local node_def_waiting = nil;
+  if self.node_name_waiting then
+    node_def_waiting = table.copy(node_def_inactive);
+  end
   
   node_def_inactive.on_construct = function (pos)
       return self:cb_on_construct(pos);
@@ -984,9 +1033,16 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
   node_def_active.groups.not_in_creative_inventory = 1;
   
   self:call_update_node_inactive_def(node_def_inactive);
-  self:cb_after_update_node_inactive_def(node_def_inactive)
+  self:cb_after_update_node_inactive_def(node_def_inactive);
   self:call_update_node_active_def(node_def_active);
-  self:cb_after_update_node_active_def(node_def_inactive)
+  self:cb_after_update_node_active_def(node_def_inactive);
+  
+  if node_def_waiting then
+    node_def_waiting.groups.not_in_creative_inventory = 1;
+    
+    self:call_update_node_active_def(node_def_waiting);
+    self:cb_after_update_node_active_def(node_def_waiting);
+  end
   
   if inactive_def then
     for key, value in pairs(inactive_def) do
@@ -998,51 +1054,61 @@ function appliance:register_nodes(shared_def, inactive_def, active_def)
       node_def_active[key] = value;
     end
   end
+  if waiting_def and node_def_waiting then
+    for key, value in pairs(waiting_def) do
+      node_def_waiting[key] = value;
+    end
+  end
   
   minetest.register_node(self.node_name_inactive, node_def_inactive);
   minetest.register_node(self.node_name_active, node_def_active);
+  if node_def_waiting then
+    minetest.register_node(self.node_name_waiting, node_def_waiting);
+  end
   
   self:call_after_register_node()
 end
 
 -- register recipes to unified_inventory/craftguide/i3
 function appliance:register_recipes(inout_type, usage_type)
-  if (self.input_stack_size<=1) then
-    for input, recipe in pairs(self.recipes.inputs) do
-      for _, outputs in pairs(recipe.outputs) do
-        if (type(outputs)=="table") then
-          outputs = outputs[1];
+  if self.have_input and (self.recipes.inputs~=nil) then
+    if (self.input_stack_size<=1) then
+      for input, recipe in pairs(self.recipes.inputs) do
+        for _, outputs in pairs(recipe.outputs) do
+          if (type(outputs)=="table") then
+            outputs = outputs[1];
+          end
+          local item = ItemStack(input);
+          item:set_count(recipe.inputs);
+          appliances.register_craft({
+              type = inout_type,
+              output = ItemStack(outputs):to_string(),
+              items = {item:to_string()},
+            })
         end
-        local item = ItemStack(input);
-        item:set_count(recipe.inputs);
-        appliances.register_craft({
-            type = inout_type,
-            output = ItemStack(outputs):to_string(),
-            items = {item:to_string()},
-          })
       end
-    end
-  else
-    for input, recipe in pairs(self.recipes.inputs) do
-      for _, outputs in pairs(recipe.outputs) do
-        if (type(outputs)=="table") then
-          outputs = outputs[1];
+    else
+      for input, recipe in pairs(self.recipes.inputs) do
+        for _, outputs in pairs(recipe.outputs) do
+          if (type(outputs)=="table") then
+            outputs = outputs[1];
+          end
+          local items = {};
+          for _, item in pairs(recipe.inputs) do
+            table.insert(items, ItemStack(item):to_string());
+          end
+          appliances.register_craft({
+              type = inout_type,
+              output = ItemStack(outputs):to_string(),
+              items = items,
+              width = self.input_stack_width,
+            })
         end
-        local items = {};
-        for _, item in pairs(recipe.inputs) do
-          table.insert(items, ItemStack(item):to_string());
-        end
-        appliances.register_craft({
-            type = inout_type,
-            output = ItemStack(outputs):to_string(),
-            items = items,
-            width = self.input_stack_width,
-          })
       end
     end
   end
   
-  if (self.have_usage) then
+  if (self.have_usage) and (self.recipes.usages~=nil) then
     for input, usage in pairs(self.recipes.usages) do
       for _, outputs in pairs(usage.outputs) do
         if (type(outputs)=="table") then

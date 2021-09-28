@@ -67,6 +67,6 @@ if appliances.have_pipeworks then
           pipeworks.scan_for_pipe_objects(pos);
         end,
     };
-  appliances.add_liquid_supply("water_pipe", liquid_supply)
+  appliances.add_liquid_supply("water_pipe_liquid", liquid_supply)
 end
 

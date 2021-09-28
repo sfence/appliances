@@ -118,6 +118,6 @@ if appliances.pipeworks then
           pipeworks.scan_for_tube_objects(pos);
         end,
     };
-  appliances.add_item_supply("item_tube", power_supply)
+  appliances.add_item_supply("tube_item", power_supply)
 end
 

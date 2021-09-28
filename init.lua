@@ -11,6 +11,8 @@ appliances.have_unified = minetest.get_modpath("unified_inventory")~=nil;
 appliances.have_craftguide = minetest.get_modpath("craftguide")~=nil;
 appliances.have_i3 = minetest.get_modpath("i3")~=nil;
 
+appliances.have_tt = minetest.get_modpath("tt")~=nil;
+
 dofile(modpath.."/functions.lua");
 dofile(modpath.."/appliance.lua");
 dofile(modpath.."/extensions.lua");
