@@ -245,7 +245,7 @@ function appliance:recipe_aviable_input(inventory)
   return input, usage
 end
 
-function appliance:recipe_select_output(outputs)
+function appliance:recipe_select_output(timer_step, outputs)
   local selection = {};
   if (#outputs>1) then
     selection = outputs[appliances.random:next(1, #outputs)];
@@ -253,6 +253,9 @@ function appliance:recipe_select_output(outputs)
     selection = outputs[1];
   end
   
+  if (type(selection)=="function") then
+    selection = selection(self, timer_step);
+  end
   if type(selection)=="table" then
     return selection;
   end
@@ -610,6 +613,7 @@ end
       
 function appliance:cb_on_punch(pos, node, puncher, pointed_thing)
   self:call_on_punch(pos, node, puncher, pointed_thing)
+  self:activate(pos, minetest.get_meta(pos))
 end
 
 function appliance:cb_on_blast(pos, intensity)
@@ -641,13 +645,13 @@ function appliance:need_wait(timer_step)
   -- use_input, use_usage, need_wait
   -- have aviable production recipe?
   local use_input, use_usage = self:recipe_aviable_input(timer_step.inv);
-  if ((use_input==nil) and self.have_input) or (use_usage==nil) and self.have_usage then
+  if ((use_input==nil) and self.have_input) or ((use_usage==nil) and self.have_usage) then
     return use_input, use_usage, true;
   end
   
   -- space for production outputs?
   if (use_input) and (#use_input.outputs==1) then
-    local output = self:recipe_select_output(use_input.outputs);
+    local output = self:recipe_select_output(timer_step, use_input.outputs);
     if (not self:recipe_room_for_output(timer_step.inv, output)) then
       return use_input, use_usage, true;
     end
@@ -682,7 +686,7 @@ function appliance:interrupt_production(timer_step)
     if (production_time>0) then
       if timer_step.use_input then
         if timer_step.use_input.losts then
-          local output = self:recipe_select_output(timer_step.use_input.losts);
+          local output = self:recipe_select_output(timer_step, timer_step.use_input.losts);
           self:recipe_output_to_stack_or_drop(timer_step.pos, timer_step.inv, output);
         end
         self:recipe_input_from_stack(inv, timer_step.use_input);
@@ -695,9 +699,9 @@ function appliance:interrupt_production(timer_step)
   if (self.stoppable_consumption==false) then
     if (timer_step.consumption_time>0) then
       if timer_step.use_usage then
-        local output = self:recipe_select_output(timer_step.use_usage.outputs); 
+        local output = self:recipe_select_output(timer_step, timer_step.use_usage.outputs); 
         if timer_step.use_usage.losts then
-          output = self:recipe_select_output(timer_step.use_usage.losts);
+          output = self:recipe_select_output(timer_step, timer_step.use_usage.losts);
         end
         self:recipe_output_to_stack_or_drop(timer_step.pos, timer_step.inv, output);
         self:recipe_usage_from_stack(timer_step.inv, timer_step.use_usage);
@@ -756,7 +760,7 @@ end
     
 function appliance:remove_used_item(timer_step)
   if (timer_step.consumption_time>=timer_step.use_usage.consumption_time) then
-    local output = self:recipe_select_output(timer_step.use_usage.outputs); 
+    local output = self:recipe_select_output(timer_step, timer_step.use_usage.outputs); 
     if (not self:recipe_room_for_output(timer_step.inv, output)) then
       self:interrupt_production(timer_step);
       self:waiting(timer_step.pos, timer_step.meta);
@@ -771,7 +775,7 @@ end
 
 function appliance:production_done(timer_step)
   if (timer_step.production_time>=timer_step.use_input.production_time) then
-    local output = self:recipe_select_output(timer_step.use_input.outputs); 
+    local output = self:recipe_select_output(timer_step, timer_step.use_input.outputs); 
     if (not self:recipe_room_for_output(timer_step.inv, output)) then
       self:waiting(timer_step.pos, timer_step.meta);
       return true;
@@ -817,7 +821,7 @@ function appliance:cb_on_timer(pos, elapsed)
     if ((timer_step.production_time>0) or (timer_step.consumption_time>0)) then
       self:interrupt_production(timer_step);
     end
-    if ((timer_step.use_input==nil) and self.have_input) or (timer_step.use_usage==nil) and self.have_usage then
+    if ((timer_step.use_input==nil) and self.have_input) or ((timer_step.use_usage==nil) and self.have_usage) then
       self:deactivate(timer_step.pos, timer_step.meta);
       return false;
     else
@@ -1075,16 +1079,18 @@ function appliance:register_recipes(inout_type, usage_type)
     if (self.input_stack_size<=1) then
       for input, recipe in pairs(self.recipes.inputs) do
         for _, outputs in pairs(recipe.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
+          if (type(outputs)~="function") then
+            if (type(outputs)=="table") then
+              outputs = outputs[1];
+            end
+            local item = ItemStack(input);
+            item:set_count(recipe.inputs);
+            appliances.register_craft({
+                type = inout_type,
+                output = ItemStack(outputs):to_string(),
+                items = {item:to_string()},
+              })
           end
-          local item = ItemStack(input);
-          item:set_count(recipe.inputs);
-          appliances.register_craft({
-              type = inout_type,
-              output = ItemStack(outputs):to_string(),
-              items = {item:to_string()},
-            })
         end
       end
     else
