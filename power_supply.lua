@@ -244,3 +244,4 @@ if appliances.have_technic then
     };
   appliances.add_power_supply("HV", power_supply)
 end
+

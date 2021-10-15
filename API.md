@@ -35,7 +35,32 @@ See example folder for appliance examples.
 
 ## Appliance power supply
 
+### Predefined
+
+* time_power
+* punch_power
+* mesecons_power (modpack mesecons)
+
 Some power supply should be always registered.
+
+## Appliance liquid supply
+
+### Predefined
+
+* water_pipe_liquid (mod pipeworks)
+
+## Appliance item supply
+
+### Predefined
+
+* tube_item (mod pipeworks)
+
+## Appliance control
+
+### Predefined
+
+* punch_control
+* mesecons_control (modpack mesecons)
 
 ## Appliance object fields
 

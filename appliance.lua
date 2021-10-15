@@ -31,12 +31,12 @@ appliance.sounds = {};
 -- connections
 appliance.items_connect_sides = {"right", "left"}; -- right, left, front, back, top, bottom
 
-appliance.liquid_connect_sides = {"top"}; -- right, left, front, back, top, bottom
-function appliance:have_liquid(pos, meta)
-  for supply_name, supply_data in pairs(self.liquid_data) do
-    local supply = appliances.liquid_supplies[supply_name]
-    if supply and supply.have_liquid then
-      if (supply.have_liquid(self, supply_data, pos, meta)) then
+appliance.supply_connect_sides = {"top"}; -- right, left, front, back, top, bottom
+function appliance:have_supply(pos, meta)
+  for supply_name, supply_data in pairs(self.supply_data) do
+    local supply = appliances.supply_supplies[supply_name]
+    if supply and supply.have_supply then
+      if (supply.have_supply(self, supply_data, pos, meta)) then
         return true;
       end
     end
@@ -48,7 +48,7 @@ appliance.power_connect_sides = {"back"}; -- right, left, front, back, top, bott
 appliance.control_connect_sides = {"right", "left", "front", "back", "top", "bottom"}; -- right, left, front, back, top, bottom
 
 appliance.power_data = {};
-appliance.liquid_data = {};
+appliance.supply_data = {};
 appliance.item_data = {};
 appliance.control_data = {};
 
@@ -74,8 +74,8 @@ end
 function appliance:power_data_register(power_data)
   self.power_data = disable_supplies_data(power_data);
 end
-function appliance:liquid_data_register(liquid_data)
-  self.liquid_data = disable_supplies_data(liquid_data);
+function appliance:supply_data_register(supply_data)
+  self.supply_data = disable_supplies_data(supply_data);
 end
 function appliance:item_data_register(item_data)
   self.item_data = disable_supplies_data(item_data);
@@ -417,6 +417,10 @@ function appliance:recipe_inventory_can_take(pos, listname, index, stack, player
 end
 
 -- form spec
+local player_inv = "list[current_player;main;1.5,3;8,4;]";
+if minetest.get_modpath("hades_core") then
+  player_inv = "list[current_player;main;0.5,3;10,4;]";
+end
 
 function appliance:get_formspec(meta, production_percent, consumption_percent)
   local progress = "";
@@ -456,7 +460,7 @@ function appliance:get_formspec(meta, production_percent, consumption_percent)
   local formspec =  "formspec_version[3]" .. "size[12.75,8.5]" ..
                     "background[-1.25,-1.25;15,10;appliances_appliance_formspec.png]" ..
                     progress..
-                    "list[current_player;main;1.5,3;8,4;]" ..
+                    player_inv ..
                     input_list ..
                     use_list ..
                     "list[context;"..self.output_stack..";9.75,0.25;2,2;]" ..
@@ -657,9 +661,9 @@ function appliance:need_wait(timer_step)
     end
   end
   
-  -- check for liquid connection
-  if (self.need_liquid) then
-    if (self:have_liquid(timer_step.pos, timer_step.meta)~=true) then
+  -- check for supply connection
+  if (self.need_supply) then
+    if (self:have_supply(timer_step.pos, timer_step.meta)~=true) then
       return use_input, use_usage, true;
     end
   end
@@ -963,8 +967,8 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
   for power_name,power_data in pairs(self.power_data) do
     self.extensions_data[power_name] = power_data;
   end
-  for liquid_name,liquid_data in pairs(self.liquid_data) do
-    self.extensions_data[liquid_name] = liquid_data;
+  for supply_name,supply_data in pairs(self.supply_data) do
+    self.extensions_data[supply_name] = supply_data;
   end
   for item_name,item_data in pairs(self.item_data) do
     self.extensions_data[item_name] = item_data;

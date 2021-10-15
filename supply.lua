@@ -1,14 +1,14 @@
 
 
-appliances.liquid_supplies = {}
+appliances.general_supplies = {}
 
-function appliances.add_liquid_supply(supply_name, liquid_supply)
+function appliances.add_supply(supply_name, general_supply)
   if appliances.all_extensions[supply_name] then
     minetest.log("error", "Another appliances mod extension with name \""..supply_name.."\" is already registered.")
     return ;
   end
-  appliances.liquid_supplies[supply_name] = liquid_supply;
-  appliances.all_extensions[supply_name] = liquid_supply;
+  appliances.general_supplies[supply_name] = general_supply;
+  appliances.all_extensions[supply_name] = general_supply;
 end
 
 -- pipeworks
@@ -67,6 +67,6 @@ if appliances.have_pipeworks then
           pipeworks.scan_for_pipe_objects(pos);
         end,
     };
-  appliances.add_liquid_supply("water_pipe_liquid", liquid_supply)
+  appliances.add_supply("water_pipe_liquid", liquid_supply)
 end
 
