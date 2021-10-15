@@ -1,4 +1,12 @@
 
+local use_craftguide = nil;
+if minetest.global_exists("craftguide") then
+  use_craftguide = craftguide;
+end
+if minetest.global_exists("hades_craftguide2") then
+  use_craftguide = hades_craftguide2;
+end
+
 -- help function for swap appliance node
 -- typicaly between active and inactive appliance
 function appliances.swap_node(pos, name)
@@ -32,7 +40,7 @@ function appliances.register_craft_type(type_name, type_def)
       })
   end
   if appliances.have_craftguide then
-    craftguide.register_craft_type(type_name, {
+    use_craftguide.register_craft_type(type_name, {
         description = type_def.description,
         icon = type_def.icon,
       })
@@ -87,7 +95,7 @@ function appliances.register_craft(craft_def)
     end
     
     if appliances.have_craftguide then
-      craftguide.register_craft({
+      use_craftguide.register_craft({
           type = craft_def.type,
           result = craft_def.output,
           items = items,
