@@ -34,7 +34,7 @@ appliance.items_connect_sides = {"right", "left"}; -- right, left, front, back, 
 appliance.supply_connect_sides = {"top"}; -- right, left, front, back, top, bottom
 function appliance:have_supply(pos, meta)
   for supply_name, supply_data in pairs(self.supply_data) do
-    local supply = appliances.supply_supplies[supply_name]
+    local supply = appliances.general_supplies[supply_name]
     if supply and supply.have_supply then
       if (supply.have_supply(self, supply_data, pos, meta)) then
         return true;
@@ -170,7 +170,7 @@ function appliance:recipe_register_input(input_name, input_def)
 end
 function appliance:recipe_register_usage(usage_name, usage_def)
   if (not self.have_usage) then
-    minetest.log("error", "Usage is disabled. Registration of usage recipe cannot be finished.");
+    minetest.log("error", "[Appliances]: Appliance "..self.node_name_inactive..". Usage is disabled. Registration of usage recipe cannot be finished.");
     return;
   end
   if (not self.recipes.usages) then

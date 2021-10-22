@@ -31,11 +31,20 @@ if appliances.have_pipeworks then
         ["pipeworks:flow_sensor_loaded"] = true,
         ["pipeworks:straight_pipe_loaded"] = true,
       };
+  local pipe_connections = {
+      left = minetest.dir_to_facedir({x=0,y=0,z=-1}),
+      right = minetest.dir_to_facedir({x=0,y=0,z=1}),
+      top = nil,
+      bottom = nil,
+      front = minetest.dir_to_facedir({x=-1,y=0,z=0}),
+      back = minetest.dir_to_facedir({x=1,y=0,z=0}),
+    };
+
   local liquid_supply = 
     {
-      -- have_liquid function
-      have_liquid = function(self, liquid_data, pos)
-          for _,side in pairs(self.liquid_connect_sides) do
+      -- have_supply function
+      have_supply = function(self, liquid_data, pos)
+          for _,side in pairs(self.supply_connect_sides) do
             local side_pos = appliances.get_side_pos(pos, side);
             local node = minetest.get_node(side_pos);
             if (pipeworks_pipe_loaded[node.name]) then
@@ -43,7 +52,7 @@ if appliances.have_pipeworks then
             end
             if (pipeworks_pipe_with_facedir_loaded[node.name]) then
               local facedir = minetest.facedir_to_dir(node.param2%32);
-              local diff = vector.substract(pos, side_pos);
+              local diff = vector.subtract(pos, side_pos);
               if (   ((facedir.x~=0) and (diff.x~=0))
                   or ((facedir.y~=0) and (diff.y~=0))
                   or ((facedir.z~=0) and (diff.z~=0))) then
@@ -55,7 +64,7 @@ if appliances.have_pipeworks then
         end,
       update_node_def = function(self, liquid_data, node_def)
           node_def.pipe_connections = {}; 
-          for _,pipe_side in pairs(self.liquid_connect_sides) do
+          for _,pipe_side in pairs(self.supply_connect_sides) do
             node_def.pipe_connections[pipe_side] = true;
             node_def.pipe_connections[pipe_side.."_param2"] = pipe_connections[pipe_side];
           end
