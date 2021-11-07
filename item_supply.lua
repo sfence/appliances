@@ -12,8 +12,9 @@ function appliances.add_item_supply(supply_name, item_supply)
 end
 
 -- pipeworks
-if appliances.pipeworks then
+if appliances.have_pipeworks then
   -- tube can insert
+  local appliance = appliances.appliance
   function appliance:tube_can_insert (pos, node, stack, direction, owner)
     if self.recipes then
       if self.have_input then
@@ -107,8 +108,8 @@ if appliances.pipeworks then
               connect_sides = {}, 
               input_inventory = self.output_stack,
             };
-          for _,side in pairs(items_connect_sides)do
-            node_def.connect_sides[side] = 1
+          for _,side in pairs(self.items_connect_sides)do
+            node_def.tube.connect_sides[side] = 1
           end
         end,
       after_dig_node = function(self, liquid_data, pos)
@@ -118,6 +119,6 @@ if appliances.pipeworks then
           pipeworks.scan_for_tube_objects(pos);
         end,
     };
-  appliances.add_item_supply("tube_item", power_supply)
+  appliances.add_item_supply("tube_item", item_supply)
 end
 
