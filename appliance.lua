@@ -962,6 +962,10 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
   
   local node_def_inactive = table.copy(shared_def);
   
+  if not node_def_inactive.drop then
+    node_def_inactive.drop = self.node_name_inactive
+  end
+  
   -- fix data (supplies, controls)
   self.extensions_data = {}
   for power_name,power_data in pairs(self.power_data) do

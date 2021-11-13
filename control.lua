@@ -21,6 +21,11 @@ if true then
           end
           return true;
         end,
+      deactivate = function (self, control, pos, meta)
+          if control.power_off_on_deactivate then
+            meta:set_int("punch_control", 0);
+          end
+        end,
       after_place_node = function (self, control, pos, meta)
           minetest.get_meta(pos):set_int("punch_control", 0);
         end,

@@ -10,6 +10,17 @@ function appliances.add_power_supply(supply_name, power_supply)
   appliances.all_extensions[supply_name] = power_supply;
 end
 
+-- no power
+if true then
+  local power_supply = 
+    {
+      is_powered = function (self, power_supply, pos, meta)
+          return 0;
+        end,
+    };
+  appliances.add_power_supply("no_power", power_supply)
+end
+
 -- time
 if true then
   local power_supply = 
@@ -132,7 +143,7 @@ if appliances.have_technic then
           meta:set_string("infotext", meta:get_string("technic_info"));
         end,
     };
-  appliances.add_power_supply("LV", power_supply)
+  appliances.add_power_supply("LV_power", power_supply)
   -- MV
   local power_supply = 
     {
@@ -187,7 +198,7 @@ if appliances.have_technic then
           meta:set_string("infotext", meta:get_string("technic_info"));
         end,
     };
-  appliances.add_power_supply("MV", power_supply)
+  appliances.add_power_supply("MV_power", power_supply)
   -- HV
   local power_supply = 
     {
@@ -242,6 +253,6 @@ if appliances.have_technic then
           meta:set_string("infotext", meta:get_string("technic_info"));
         end,
     };
-  appliances.add_power_supply("HV", power_supply)
+  appliances.add_power_supply("HV_power", power_supply)
 end
 
