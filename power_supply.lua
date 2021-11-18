@@ -94,13 +94,15 @@ if appliances.have_technic then
     {
       is_powered = function (self, power_data, pos, meta)
           local eu_input = meta:get_int("LV_EU_input");
-          if (eu_input>=power_data.demand) then
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          if (eu_input>=demand) then
             return power_data.run_speed;
           end
           return 0;
         end,
       power_need = function (self, power_data, pos, meta)
-          meta:set_int("LV_EU_demand", power_data.demand)
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          meta:set_int("LV_EU_demand", demand)
         end,
       power_idle = function (self, power_data, pos, meta)
           meta:set_int("LV_EU_demand", 0)
@@ -149,13 +151,15 @@ if appliances.have_technic then
     {
       is_powered = function (self, power_data, pos, meta)
           local eu_input = meta:get_int("MV_EU_input");
-          if (eu_input>=power_data.demand) then
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          if (eu_input>=demand) then
             return power_data.run_speed;
           end
           return 0;
         end,
       power_need = function (self, power_data, pos, meta)
-          meta:set_int("MV_EU_demand", power_data.demand)
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          meta:set_int("MV_EU_demand", demand)
         end,
       power_idle = function (self, power_data, pos, meta)
           meta:set_int("MV_EU_demand", 0)
@@ -204,13 +208,15 @@ if appliances.have_technic then
     {
       is_powered = function (self, power_data, pos, meta)
           local eu_input = meta:get_int("HV_EU_input");
-          if (eu_input>=power_data.demand) then
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          if (eu_input>=demand) then
             return power_data.run_speed;
           end
           return 0;
         end,
       power_need = function (self, power_data, pos, meta)
-          meta:set_int("HV_EU_demand", power_data.demand)
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          meta:set_int("HV_EU_demand", demand)
         end,
       power_idle = function (self, power_data, pos, meta)
           meta:set_int("HV_EU_demand", 0)
