@@ -11,6 +11,15 @@ function appliances.add_supply(supply_name, general_supply)
   appliances.all_extensions[supply_name] = general_supply;
 end
 
+if true then
+  local no_supply = {
+      have_supply = function(self, supply_data, pos, meta)
+        return 0
+      end,
+    }
+  appliances.add_supply("no_supply", no_supply)
+end
+
 -- pipeworks
 if appliances.have_pipeworks then
   local pipeworks_pipe_loaded = {
@@ -43,12 +52,12 @@ if appliances.have_pipeworks then
   local liquid_supply = 
     {
       -- have_supply function
-      have_supply = function(self, liquid_data, pos)
+      have_supply = function(self, liquid_data, pos, meta)
           for _,side in pairs(self.supply_connect_sides) do
             local side_pos = appliances.get_side_pos(pos, side);
             local node = minetest.get_node(side_pos);
             if (pipeworks_pipe_loaded[node.name]) then
-              return true;
+              return 1;
             end
             if (pipeworks_pipe_with_facedir_loaded[node.name]) then
               local facedir = minetest.facedir_to_dir(node.param2%32);
@@ -56,11 +65,11 @@ if appliances.have_pipeworks then
               if (   ((facedir.x~=0) and (diff.x~=0))
                   or ((facedir.y~=0) and (diff.y~=0))
                   or ((facedir.z~=0) and (diff.z~=0))) then
-                return true;
+                return 1;
               end
             end
           end
-          return false;
+          return 0;
         end,
       update_node_def = function(self, liquid_data, node_def)
           node_def.pipe_connections = {}; 

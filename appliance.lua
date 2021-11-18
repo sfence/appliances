@@ -36,12 +36,13 @@ function appliance:have_supply(pos, meta)
   for supply_name, supply_data in pairs(self.supply_data) do
     local supply = appliances.general_supplies[supply_name]
     if supply and supply.have_supply then
-      if (supply.have_supply(self, supply_data, pos, meta)) then
-        return true;
+      local supply_speed = supply.have_supply(self, supply_data, pos, meta)
+      if (supply_speed>0) then
+        return supply_speed;
       end
     end
   end
-  return false;
+  return 0;
 end
 
 appliance.power_connect_sides = {"back"}; -- right, left, front, back, top, bottom
@@ -65,8 +66,12 @@ local function disable_supply_data(supplies_data, supply_data)
   end
 end
 local function disable_supplies_data(supplies_data)
-  for _,supply_data in pairs(supplies_data) do
-    disable_supply_data(supplies_data, supply_data);
+  for supply_name,supply_data in pairs(supplies_data) do
+    if appliances.all_extensions[supply_name] then
+      disable_supply_data(supplies_data, supply_data);
+    else
+      supplies_data[supply_name] = nil
+    end
   end
   return supplies_data;
 end
@@ -330,9 +335,9 @@ end
 
 function appliance:recipe_step_size(step_size)
   local int_step_size = math.floor(step_size);
-  local rem_step_size = (step_size - int_step_size)*100;
+  local rem_step_size = (step_size - int_step_size)*1000000;
   if (rem_step_size>=1) then
-    if (rem_step_size<appliances.random:next(0,99)) then
+    if (rem_step_size>appliances.random:next(0,999999)) then
       int_step_size = int_step_size + 1;
     end
   end
@@ -663,8 +668,17 @@ function appliance:need_wait(timer_step)
   
   -- check for supply connection
   if (self.need_supply) then
-    if (self:have_supply(timer_step.pos, timer_step.meta)~=true) then
+    local supply_speed = self:have_supply(timer_step.pos, timer_step.meta)
+    if (supply_speed<=0) then
       return use_input, use_usage, true;
+    end
+    if use_input then
+      use_input = table.copy(use_input)
+      use_input.consumption_step_size = use_input.consumption_step_size*supply_speed
+    end
+    if use_usage then
+      use_usage = table.copy(use_usage)
+      use_usage.production_step_size = use_usage.production_step_size*supply_speed
     end
   end
   
@@ -913,7 +927,6 @@ end
 
 function appliance:cb_on_metadata_inventory_take(pos, listname, index, stack, player)
   local meta = minetest.get_meta(pos)
-  local timer = minetest.get_node_timer(pos)
   local inv = meta:get_inventory()
   
   -- have aviable production recipe?
@@ -1026,7 +1039,7 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
       return self:cb_on_metadata_inventory_put(pos, listname, index, stack, player);
     end
   node_def_inactive.on_metadata_inventory_take = function (pos, listname, index, stack, player)
-      return self:cb_on_metadata_inventory_put(pos, listname, index, stack, player);
+      return self:cb_on_metadata_inventory_take(pos, listname, index, stack, player);
     end
   
   local node_def_active = table.copy(node_def_inactive);
