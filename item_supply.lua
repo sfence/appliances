@@ -94,7 +94,7 @@ if appliances.have_pipeworks then
   end
   local item_supply = 
     {
-      update_node_def = function (self, power_data, node_def)
+      update_node_def = function (self, supply_data, node_def)
           node_def.groups.tubedevice = 1;
           node_def.groups.tubedevice_receiver = 1;
           node_def.tube =

@@ -1,4 +1,6 @@
 
+appliances.all_sides = {"right", "left", "front", "back", "top", "bottom"}
+
 appliances.appliance = {};
 local appliance = appliances.appliance;
 
@@ -154,7 +156,7 @@ appliance.have_control = false;
 
 function appliance:recipe_register_input(input_name, input_def)
   if (not self.have_input) then
-    minetest.log("error", "Input is disabled. Registration of input recipe cannot be finished.");
+    minetest.log("error", "[Appliances]: Input is disabled. Registration of input recipe cannot be finished.");
     return;
   end
   if (self.input_stack_size <= 1) then
@@ -163,7 +165,7 @@ function appliance:recipe_register_input(input_name, input_def)
     local register = true;
     for index, value in pairs(input_def.inputs) do
       if ((index < 1) or ( index > self.input_stack_size)) then
-        minetest.log("error", "Input definition is not compatible with size of input stack: "..dump(input_def));
+        minetest.log("error", "[Appliances]: Input definition is not compatible with size of input stack: "..dump(input_def));
         register = false;
         break;
       end
@@ -407,7 +409,7 @@ function appliance:recipe_inventory_can_take(pos, listname, index, stack, player
         count = count-input.inputs;
         if (count<0) then count = 0; end
       else
-        minetest.log("error", "Input item missing in recipes list.")
+        minetest.log("error", "[Appliances]: Input item missing in recipes list.")
       end
     end
   elseif (listname==self.use_stack) then
@@ -701,13 +703,13 @@ end
 
 function appliance:interrupt_production(timer_step)
   if (self.stoppable_production==false) then
-    if (production_time>0) then
+    if (timer_step.production_time>0) then
       if timer_step.use_input then
         if timer_step.use_input.losts then
           local output = self:recipe_select_output(timer_step, timer_step.use_input.losts);
           self:recipe_output_to_stack_or_drop(timer_step.pos, timer_step.inv, output);
         end
-        self:recipe_input_from_stack(inv, timer_step.use_input);
+        self:recipe_input_from_stack(timer_step.inv, timer_step.use_input);
       end
       timer_step.meta:set_int("production_time", 0);
       timer_step.production_time = 0;
@@ -784,11 +786,15 @@ function appliance:remove_used_item(timer_step)
       self:waiting(timer_step.pos, timer_step.meta);
       return true;
     end
-    self:recipe_output_to_stack(timer_step.inv, output);
+    if timer_step.use_usage.on_done then
+      output = timer_step.use_usage.on_done(self, timer_step, output)
+    end
+    self:recipe_output_to_stack_or_drop(timer_step.pos, timer_step.inv, output);
     self:recipe_usage_from_stack(timer_step.inv, timer_step.use_usage);
     timer_step.consumption_time = 0;
     timer_step.meta:set_int("consumption_time", 0);
   end
+  return false
 end
 
 function appliance:production_done(timer_step)
@@ -798,11 +804,15 @@ function appliance:production_done(timer_step)
       self:waiting(timer_step.pos, timer_step.meta);
       return true;
     end
-    self:recipe_output_to_stack(timer_step.inv, output);
+    if timer_step.use_input.on_done then
+      output = timer_step.use_input.on_done(self, timer_step, output)
+    end
+    self:recipe_output_to_stack_or_drop(timer_step.pos, timer_step.inv, output);
     self:recipe_input_from_stack(timer_step.inv, timer_step.use_input);
     timer_step.production_time = 0;
     timer_step.meta:set_int("production_time", 0);
   end
+  return false
 end
 
 function appliance:update_meta_formspec(timer_step)

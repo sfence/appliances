@@ -38,8 +38,8 @@ if true then
     {
       is_powered = function (self, power_supply, pos, meta)
           local is_powered = meta:get_int("is_powered");
-          if (is_powered~=0) then
-            meta:set_int("is_powered", 0);
+          if (is_powered>0) then
+            meta:set_int("is_powered", is_powered-1);
             return power_supply.run_speed;
           end
           return 0;
@@ -52,7 +52,7 @@ if true then
         end,
       on_punch = function (self, power_supply, pos, node, puncher, pointed_thing)
           local meta = minetest.get_meta(pos);
-          meta:set_int("is_powered", 1);
+          meta:set_int("is_powered", power_supply.punch_power or 1);
           
         end,
     };
