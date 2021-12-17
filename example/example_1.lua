@@ -1,7 +1,6 @@
 -- Example 1
 --
 -- Basic punch powered machine
--- Use different power data for different power mechanism
 
 local S = minetest.get_translator("translator_name");
 
@@ -16,20 +15,16 @@ clothing.example1_machine = appliances.appliance:new(
       -- other lines of descriptions
       node_help = S(".").."\n"..
                   S("Powered by punching."),
-      
-      -- do not need water to work
-      need_water = false,
-      
-      -- power data
-      power_data = {
-        ["punch"] = {
-            run_speed = 1,
-          },
-      },
     }
   );
 
 local example_1_machine = clothing.example_1_machine;
+
+example_1:power_data_register({
+    ["punch_power"] = {
+            run_speed = 1,
+          },
+  })
 
 --------------
 -- Formspec --
@@ -212,5 +207,8 @@ example_1_machine:recipe_register_input(
   });
 
 -- register recipes to unified_inventory
-example_1_machine:register_recipes("example_example_1", "example_example_1_use")
+minetest.register_on_mods_loaded(
+  function ()
+    example_1_machine:register_recipes("example_example_1", "example_example_1_use")
+  end)
 

@@ -1,4 +1,4 @@
-# Appliance API
+# Appliances API
 
 
 See example folder for appliance examples.
@@ -22,6 +22,20 @@ See example folder for appliance examples.
   * width - width of recipe
   * height - height of recipe
   * dynamic_display_size - unified_inventory callback only
+  
+		{
+			-- description text
+			description = "",
+			-- path to icon file, can be nil
+			icon = "",
+			-- width of recipe (unified only)
+			width = 1,
+			-- height of recipe (unified only)
+			height = 1,
+			-- unified callback only
+			dynamic_display_size = nil,
+		}
+
 
 ### appliances.register_craft(craft_def)
 
@@ -30,198 +44,393 @@ See example folder for appliance examples.
   * type - type of recipe
   * output - recipe product
   * items - input items
+ 
+		{
+			-- type name (some of registered craft type)
+			type = "",
+			-- item string of recipe product
+			output = "",
+			-- input items
+			items = {""},
+		}
 
-## Appliance recipes
+## Appliance object definition
 
-## Appliance power supply
+	{
+		-- this field have to be set manually always, in time of new appliance creation
+		-- this fields specifi active and inactive appliance node names
+		node_name_active = "default:furnace_active",
+		node_name_incative = "default:furnace",
+		-- can be set, if appliance should have special registered node for waiting state
+		node_name_waiting = nil,
+		
+		input_stack = "input",
+		-- input stack name
+		
+		input_stack_size = 1,
+		-- input stack size
+		-- use 0 value to disable stack creation
+		-- if input stack size is different from 1, method get_formspec should be override
+		
+		have_input = true,
+		-- enable/disable input stack checks
+		
+		use_stack = "use_in",
+		-- use stack name
+		
+		use_stack_size = 1,
+		-- use stack size
+		-- use 0 value to disable stack creation
+		-- if size of use stack is different from 1 and have_usage is true, method get_formspec should be override
+		
+		have_usage = true,
+		-- enable/disable usage stack checks
+		
+		output_stack = "output",
+		-- output stack name
+		
+		output_stack_size = 4,
+		-- output stack size
+		-- use 0 value to disable stack creation
+		-- if output stack size is different from 4, method get_formspec should be override
+		
+		stoppable_production = true,
+		-- when false, production is not interruptable
+		stoppable_consumption = true,
+		-- when false, consumption is not interruptable
+		
+		items_connect_sides = {"right", "left"},
+		-- sides item supply can be connected from/to
+		-- right, left, front, back, top, bottom
+		
+		supply_connect_sides = {"top"}; 
+		-- sides general supply can be connected from/to
+		-- right, left, front, back, top, bottom
+		
+		power_connect_sides = {"back"};
+		-- sides power supply can be connected from/to
+		-- right, left, front, back, top, bottom
+		
+		control_connect_sides = {"right", "left", "front", "back", "top", "bottom"};
+		-- sides control can be connected from/to
+		-- right, left, front, back, top, bottom
+
+		meta_infotext = "infotext",
+		-- metadata name for store infotext.
+		-- uses for example when appliance if powered by technic mod
+		
+		sounds = {
+			-- use in state running
+			running = {
+				sound = <SimpleSoundSpec>,
+				sound_param = {},
+				repeat_timer = 5,
+			},
+			-- use in state waiting
+			waiting = {
+				sound = <SimpleSoundSpec>,
+				sound_param = {}.
+			},
+			-- use in state activate
+			activate = {
+				sound = <SimpleSoundSpec>,
+				sound_param = {}.
+				repeat_timer = 0,
+			},
+			-- use when state is changed from waiting to running
+			waiting_running = {
+				sound = <SimpleSoundSpec>,
+				sound_param = {}.
+				repeat_timer = 0,
+			},
+			-- use when state is changed from running to waiting
+			running_waiting = {
+				sound = <SimpleSoundSpec>,
+				sound_param = {}.
+				repeat_timer = 0,
+			},
+		}
+	}
+
+
+## Appliance object functions
+
+Methods of object appliances.appliance.
+
+### appliance:new(definition)
+
+See [Appliance object definition] for definition description.
+
+### appliance:power_data_register(power_data)
+
+* Take only useful power_data.
+
+### appliance:item_data_register(item_data)
+
+* Take only useful item_data.
+
+### appliance:supply_data_register(supply_data)
+
+* Take only useful supply_data.
+
+### appliance:control_data_register(control_data)
+
+* Take only useful control_data.
+
+### appliance:recipe_register_input(input_name, input_def)
+
+* Registration of input recipe.
+* for input_stack_size = 1, input_name have to be eqqual to recipe input item name.
+* for input_stack_size > 1, input_def have to include field inputs, which should be en array of input item names.
+* input_def:
+
+		{			
+			-- number of input items, if input_stack_size = 1
+			inputs = 1,
+			-- inputs item table, if input_stack_size > 1
+			inputs = {"",""},
+			-- list of one or more outputs, if more outputs, one record is selected randomly
+			outputs = {"output_item", {"multi_output1", "multi_output2"}},
+			-- output when production is interrupted
+			losts = {},
+			-- nil, if every usage item can be used
+			require_usage = {["item"]=true},
+			-- time to product outputs
+			production_time = 160,
+			-- change usage consumption speed (1 means no change)
+			consumption_step_size = 1,
+			-- optional function for update output items list, when production is finished
+			on_done = function(self, timer_step, outputs),
+		}
+
+### appliance:recipe_register_usage(usage_name, usage_def)
+
+ Registration of usage recipe.
+* usage_name have to be equal to recipe input item name.
+* usage_def:
+	
+		{
+			-- list of one or more outputs, if more outputs, one record is selected randomly
+			outputs = {"output_item", {"multi_output1", "multi_output2"}},
+			-- output when production is interrupted
+			losts = {},
+			-- time to change usage item to outputs
+			consumption_time = 60,
+			-- speed of production output (1 means no change)
+			production_step_size = 1,
+			-- optional function for update output items list, when item is consumpted
+			on_done = function(self, timer_step, outputs),
+		}
+
+### appliance:register_nodes(shared_def, inactive_def, active_def, waiting_def)
+
+This functions register appliance nodes.
+
+* shared_def - table with specific node definition data (like tiles, mesh etc.)
+* inactive_def - table with field which should be updated/added in/to shared_def to gen full inactive node deifnition.
+* active_def - table with field which should be updated/added in/to shared_def to gen full active node deifnition.
+* waiting_def - table with field which should be updated/added in/to shared_def to gen full waiting node deifnition.
+
+## Extensions
+
+Appliance mod part for add some specific functionality/dependency.
+
+## Extension power supply
 
 ### Predefined
 
+* no_power
 * time_power
 * punch_power
 * mesecons_power (modpack mesecons)
+* LV_power (technic mod)
+* MV_power (technic mod)
+* HV_power (technic mod)
 
-Some power supply should be always registered.
+		appliance:power_data_register({
+			["no_power"] = {
+				-- no power, should be used, when no useful power source is aviable
+			},
+			["time_power"] = {
+				-- run speed if this power data is used
+				run_speed = 1,
+			},
+			["punch_power"] = {
+				-- run speed if this power data is used
+				run_speed = 1,
+				-- can be used to specify required punching interval in seconds
+				-- if not defined, value 1 is used
+				punch_power = 1, 
+			},
+			["mesecons_power"] = {
+				-- run speed if this power data is used
+				run_speed = 1,
+				-- can be used to disable some power data if this power type is registered/aviable
+				disable = {"time_power","no_power"},
+			},
+			-- LV_power or MV_power or HV_power
+			["LV_power"] = {
+				-- run speed if this power data is used
+				run_speed = 1,
+				-- demand or get_demand
+				demand = 100,
+				get_demand = function(self, pos, meta)
+				  return 100
+				end,
+				-- can be used to disable some power data if this power type is registered/aviable
+				disable = {"no_power"},
+			},
+		})
 
-## Appliance liquid supply
+### appliances.add_power_supply(supply_name, power_supply)
+
+* supply_name - unique supply name (shared across extensions)
+* power_supply - definition
+
+### Power extension specific callback functions
+
+* is_powered(self, supply_data, pos, meta)
+* power_need(self, supply_data, pos, meta)
+* power_idle(self, supply_data, pos, meta)
+
+## Extension general supply
 
 ### Predefined
 
+* no_supply
 * water_pipe_liquid (mod pipeworks)
 
-## Appliance item supply
+		appliance:supply_data_register({
+			["no_supply"] = {
+			},
+			["water_pipe_liquid"] = {
+				-- check if water pipe with water is connected to appliance
+				-- no special data is required
+				disable = {"no_supply"},
+			},
+		})
+
+### appliances.add_supply(supply_name, general_supply)
+
+* supply_name - unique supply name (shared across extensions)
+* general_supply - definition
+
+### Supply extension specific callback functions
+
+This functions can be defined in supply definition.
+
+* have_supply(self, supply_data, pos, meta)
+
+## Extension item supply
 
 ### Predefined
 
 * tube_item (mod pipeworks)
 
-## Appliance control
+		appliance:supply_data_register({
+			["tube_item"] = {
+				-- add pipeworks tube support
+				-- no special data is required
+			},
+		})
+
+### appliances.add_item_supply(supply_name, item_supply)
+
+* supply_name - unique supply name (shared across extensions)
+* item_supply - definition
+
+
+## Extension control
 
 ### Predefined
 
 * punch_control
 * mesecons_control (modpack mesecons)
 
-## Appliance object fields
+		appliance:control_data_register({
+			["punch_control"] = {
+				-- appliance have to be punched to start/stop
+				power_off_on_deactivate = false/true, -- if true, control is disabled when appliance is deactivated
+			},
+			["mesecons_control"] = {
+				-- appliance start/stop is driven by messecon signal
+				-- no special data is required
+			},
+		})
 
-### Field sounds
+### appliances.add_control(control_name, control_def)
 
-Usable 
+* control_name - unique supply name (shared across extensions)
+* control_def - definition
 
-	sounds = {
-		running = {
-			sound = <SimpleSoundSpec>,
-			sound_param = {},
-			repeat_timer = 5,
-		},
-		waiting = {
-			sound = <SimpleSoundSpec>,
-			sound_param = {}.
-		},
-		activate = {
-			sound = <SimpleSoundSpec>,
-			sound_param = {}.
-			repeat_timer = 0,
-		},
-		
-	}
+### Control extension specific callback functions
 
-## Appliance object functions
+This functions can be defined in control definition.
 
-Methods of object appliances.appliance.
+control_wait(self, control_data, pos, meta)
 
-### appliance:new(def)
+## Extensions aviable callback functions
 
-### appliance:power_data_register(power_data)
+This functions can be defined in any extension definition.
 
-* Take only useful power_data
+* activate(self, extension_data, pos, meta)
+* deactivate(self, extension_data, pos, meta)
+* running(self, extension_data, pos, meta)
+* waiting(self, extension_data, pos, meta)
+* no_power(self, extension_data, pos, meta)
 
-## Appliance table parameters
+* update_node_def(self, extension_data, node_def)
+* update_node_inactive_def(self, extension_data, node_def)
+* update_node_active_def(self, extension_data, node_def)
 
-appliance.input\_stack = "input"; -- input stack name, can be nil, can be same as output\_stack
-appliance.input\_stack\_size = 1; -- zero value will disable stack creation 
-appliance.input\_stack\_width = nil; -- use value to generate valid recipes for craftguide when using input stack with more then 1 stack items.
-appliance.use\_stack = "use\_in"; -- use stack name, can be nil, can be same as input\_stack
-appliance.use\_stack\_size = 1; -- zero value will disable stack creation
-appliance.output\_stack = "output"; -- output stack name, cannot be nil
-appliance.output\_stack\_size = 4; -- zero value will disable stack creation
+* after_register_node(self, extension_data)
+* on_construct(self, extension_data, pos, meta)
+* on_destruct(self, extension_data, pos, meta)
+* after_destruct(self, extension_data, pos, oldnode)
+* after_place_node(self, extension_data, pos, placer, itemstack, pointed_thing)
+* after_dig_node(self, extension_data, pos, oldnode, oldmetadata, digger)
+* can_dig(self, extension_data, pos, player)
+* on_punch(self, extension_data, pos, node, puncher, pointed_thing)
+* on_blast(self, extension_data, pos, intensity)
 
-appliance.power\_data = nil; -- nil mean, power is not required
-appliance.meta\_infotext = "infotext";
 
--- recipe format
--- recipes automatizations
-appliance.recipes = {
-    inputs = {},
-    usages = nil,
-  }
-appliance.stoppable\_production = true; -- when false, production is interruptable
-appliance.stoppable\_consumption = true; -- when false, consumptio is interrutable
+## Callback for potencionally redefinition
 
-Power data
-----------
-
-### Keys - ordered by priority:
-  "LV", "MV", "HV" -> powered by technic LV, MV or HV
-  "mesecons" -> powered by messecons
-  "punch" -> powered by punching
-  "time" -> only time is need to create output
-  
-  
-### Power definition
-  {
-    -- run speed when node is powered by this caterogy
-    run_speed = 1.0,
-    -- demand in EU, used by technic mod (keys "LV", "MV", "HV")
-    demand = 100,
-    -- list of power_data keys for disable, when this one is usable
-    disable = {}
-  }
-
-Example:
- -- only one of data will stay
-  {
-    -- stay only if technic mod is enabled
-    ["LV"] = {
-        demand = 100,
-        run_speed = 1,
-        disable = {"mesecons","time"},
-      },
-    -- stau only when technic mod is disabled and mesecons mod is enabled
-    ["mesecons"] = {
-        run_speed = 1,
-        disable = {"LV","time"},
-      },
-    -- stay only when technic and mesecons mod are disabled
-    ["time"] = {
-        run_speed = 1,
-        disable = {"LV","mesecons"},
-      },
-    }
-
-Recipes inputs
---------------
-
-appliance:recipe\_register\_input(
-  "input\_item", -- ignored if more then one inputs is used
-  {
-    inputs = 1,
-    inputs = {"",""}, -- list of inputs, if more then one input is used, list length same as input inventory size
-    outputs = {"output_item", {"multi_output1", "multi_output2"}}, -- list of one or more outputs, if more outputs, one record is selected
-    losts = {}, -- output when production is interrupted
-    require_usage = {["item"]=true}, -- nil, if every usage item can be used
-    production_time = 160, -- time to product outputs
-    consumption_step_size = 1, -- change usage consumption
-  })
-
-Recipes usages
---------------
-
-appliance:recipe\_register\_usage(
-  "usage\_item",
-  {
-    outputs = {"output_item", {"multi_output1", "multi_output2"}},
-    losts = {},
-    consumption_time = 60, -- time to change usage item to outputs
-    production_step_size = 1, -- speed of production output
-  })
-
-Callback for potencionally redefinition
-=======================================
 
 All methods can be redefined in child class.
 
-Methods with prefix cb_\* is ideal for redefinition if some special function have to be added.
+Methods with prefix cb_\* is ideal for redefinition if some special function have to be added/changed.
 
 Redefine method get\_formspec if you are not using default configuration of inventory sizes. Default method support setting have\_usage.
 
+It is recommended to check original function code before redefinition. Some functions have to be redefined carefully to prevent problems (like cb_on_timer).
 
-Registration methods
-=====================
+* cb_play_sound(pos, meta, old_state, new_state)
 
-register\_nodes(shared\_def, inactive\_def, active\_def)
-  - shared\_def is table with node setting which is same for active and inactive node.
-  - inactive\_def is table with specific settings for inactive node
-  - active\_def is table with specific settings for active node
-  - table fields are same like if you use function minetest.register\_node
-register\_recipes()
-  - register all added recipes like custom recipes if inventory like unified\_uinventory, craftguide or i3 is aviable.
+* cb_activate(pos, meta)
+* cb_deactivate(pos, meta)
+* cb_running(pos, meta)
+* cb_waiting(pos, meta)
+* cb_no_power(pos, meta)
 
+* cb_on_construct(pos)
+* cb_after_place_node(pos, placer, itemstack, pointed_thing)
+* cb_can_dig(pos)
+* cb_after_dig_node(pos, oldnode, oldmetadata, digger)
+* cb_on_punch(pos, node, puncher, pointed_thing)
+* cb_on_blast(pos, intensity)
 
-Other help functions
-====================
+* cb_on_production(timer_step)
+* cb_on_timer(pos, elapsed)
 
-appliances.register\_craft\_type({
-    description = "", -- description text
-    icon = "", -- path to icon file, can be nil
-    width = 1, -- width of recipe (unified only)
-    height = 1, -- height of recipe (unified only)
-    dynamic_display_size = nil, -- unified callback only
-  })
+* cb_allow_metadata_inventory_move(pos, from_list, from_index, to_list, to_index, count, player)
+* cb_allow_metadata_inventory_put(pos, listname, index, stack, player)
+* cb_allow_metadata_inventory_take(pos, listname, index, stack, player)
 
-appliances.register\_craft({
-    type = "", -- type name
-    output = "", -- item string
-    items = {""}, -- input items
-  })
+* cb_on_metadata_inventory_move(pos, from_list, from_index, to_list, to_index, count, player)
+* cb_on_metadata_inventory_put(pos, listname, index, stack, player)
+* cb_on_metadata_inventory_take(pos, listname, index, stack, player)
 
+* cb_after_update_node_def(node_def)
+* cb_after_update_node_inactive_def(node_def)
+* cb_after_update_node_active_def(node_def)

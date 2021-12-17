@@ -1,7 +1,6 @@
 -- Example 2
 --
 -- Punch powered machine with recipe like input
--- Use different power data for different power mechanism
 
 local S = clothing.translator;
 
@@ -19,20 +18,16 @@ clothing.example_2 = appliances.appliance:new(
       use_stack = "input",
       use_stack_size = 0,
       have_usage = false,
-      
-      
-      need_water = false,
-      power_data = {
-        ["punch"] = {
-            run_speed = 1,
-          },
-      },
-      
-      have_tubes = false,
     }
   );
 
 local example_2 = clothing.example_2;
+
+example_2:power_data_register({
+    ["punch_power"] = {
+            run_speed = 1,
+          },
+  })
 
 --------------
 -- Formspec --
@@ -174,5 +169,8 @@ example_2:recipe_register_input(
     consumption_step_size = 1,
   });
 
-example_2:register_recipes("example_example_2", "")
+minetest.register_on_mods_loaded(
+  function ()
+    example_2:register_recipes("example_example_2", "")
+  end)
 
