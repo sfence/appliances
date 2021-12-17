@@ -54,6 +54,11 @@ if appliances.have_mesecons then
           end
           return true;
         end,
+      deactivate = function (self, control, pos, meta)
+          if control.power_off_on_deactivate then
+            meta:set_int("mesecons_control", 0);
+          end
+        end,
       update_node_def = function (self, control, node_def)
           node_def.effector = {
             action_on = function (pos, node)
@@ -73,4 +78,37 @@ if appliances.have_mesecons then
   appliances.add_control("mesecons_control", control);
 end
 
--- digilines? 
+-- digilines
+if appliances.have_digilines then
+  local control = 
+    {
+      control_wait = function (self, control, pos, meta)
+          local state = meta:get_float("digilines_control");
+          if (state~=0) then
+            return false;
+          end
+          return true;
+        end,
+      deactivate = function (self, control, pos, meta)
+          if control.power_off_on_deactivate then
+            meta:set_float("digilines_control", 0);
+          end
+        end,
+      update_node_def = function (self, control, node_def)
+          node_def.digilines = {
+            receptor = {},
+            effector = {
+              action = function (pos, _, channel, msg)
+                minetest.get_meta(pos):set_float("digilines_control", 0);
+              end,
+            },
+          }
+        end,
+      after_place_node = function (self, control, pos, meta)
+          minetest.get_meta(pos):set_int("digilines_control", 0);
+        end,
+      
+    };
+  appliances.add_control("digilines_control", control);
+end
+
