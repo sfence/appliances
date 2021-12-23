@@ -75,7 +75,7 @@ if appliances.have_pipeworks then
           node_def.pipe_connections = {}; 
           for _,pipe_side in pairs(self.supply_connect_sides) do
             node_def.pipe_connections[pipe_side] = true;
-            node_def.pipe_connections[pipe_side.."_param2"] = pipe_connections[pipe_side];
+            --node_def.pipe_connections[pipe_side.."_param2"] = pipe_connections[pipe_side];
           end
         end,
       after_place_node = function(self, liquid_data, pos)
