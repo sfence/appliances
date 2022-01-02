@@ -41,13 +41,47 @@ if appliances.have_pipeworks then
         ["pipeworks:straight_pipe_loaded"] = true,
       };
   local pipe_connections = {
-      left = minetest.dir_to_facedir({x=0,y=0,z=-1}),
-      right = minetest.dir_to_facedir({x=0,y=0,z=1}),
-      top = nil,
-      bottom = nil,
-      front = minetest.dir_to_facedir({x=-1,y=0,z=0}),
-      back = minetest.dir_to_facedir({x=1,y=0,z=0}),
-    };
+    left = {
+      left = true,
+      right = true,
+      front = true,
+      back = true,
+      left_param2 = 2,
+      right_param2 = 0,
+      front_param2 = 1,
+      back_param2 = 3,
+    },
+    right = {
+      left = true,
+      right = true,
+      front = true,
+      back = true,
+      left_param2 = 0,
+      right_param2 = 2,
+      front_param2 = 3,
+      back_param2 = 1,
+    },
+    front = {
+      left = true,
+      right = true,
+      front = true,
+      back = true,
+      left_param2 = 1,
+      right_param2 = 3,
+      front_param2 = 0,
+      back_param2 = 2,
+    },
+    back = {
+      left = true,
+      right = true,
+      front = true,
+      back = true,
+      left_param2 = 3,
+      right_param2 = 1,
+      front_param2 = 2,
+      back_param2 = 0,
+    },
+  }
 
   local liquid_supply = 
     {
@@ -75,7 +109,11 @@ if appliances.have_pipeworks then
           node_def.pipe_connections = {}; 
           for _,pipe_side in pairs(self.supply_connect_sides) do
             node_def.pipe_connections[pipe_side] = true;
-            --node_def.pipe_connections[pipe_side.."_param2"] = pipe_connections[pipe_side];
+            if pipe_connections[pipe_side] then
+              for key,value in pairs(pipe_connections[pipe_side]) do
+                node_def.pipe_connections[key] = value;
+              end
+            end
           end
         end,
       after_place_node = function(self, liquid_data, pos)
