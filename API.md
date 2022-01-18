@@ -54,6 +54,18 @@ See example folder for appliance examples.
 			items = {""},
 		}
 
+### appliances.get_side_pos(pos_from, node_from, side)
+
+* Return side position
+
+### appliances.get_sides_pos(pos_from, node_from, sides)
+
+* Return combinated sides position
+
+### appliances.is_connected_to(pos_from, node_from, pos_to, sides)
+
+* Check if node is connected to pos by some of given sides.
+
 ## Appliance object definition
 
 	{
