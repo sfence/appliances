@@ -88,7 +88,7 @@ if appliances.have_pipeworks then
       -- have_supply function
       have_supply = function(self, liquid_data, pos, meta)
           for _,side in pairs(self.supply_connect_sides) do
-            local side_pos = appliances.get_side_pos(pos, side);
+            local side_pos = appliances.get_side_pos(pos, nil, side);
             local node = minetest.get_node(side_pos);
             if (pipeworks_pipe_loaded[node.name]) then
               return 1;

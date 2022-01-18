@@ -117,18 +117,30 @@ end
 -- add this vector to position vector to get position on wanted side
 local facedir_toside = {front={},back={},right={},left={},bottom={},top={}}
 for facedir=0,23 do
-  axis = math.floor(facedir/4);
-  around = facedir%4;
-  facedir_toside.back[facedir] = minetest.facedir_to_dir(axis+around)
-  facedir_toside.front[facedir] = minetest.facedir_to_dir(axis+(around+2)%4)
-  facedir_toside.left[facedir] = minetest.facedir_to_dir(axis+(around+1)%4)
-  facedir_toside.right[facedir] = minetest.facedir_to_dir(axis+(around+3)%4)
+  local axis = math.floor(facedir/4);
+  local around = facedir%4;
+  facedir_toside.back[facedir] = minetest.facedir_to_dir(axis*4+around)
+  facedir_toside.front[facedir] = minetest.facedir_to_dir(axis*4+(around+2)%4)
+  facedir_toside.left[facedir] = minetest.facedir_to_dir(axis*4+(around+1)%4)
+  facedir_toside.right[facedir] = minetest.facedir_to_dir(axis*4+(around+3)%4)
   facedir_toside.bottom[facedir] = vector.cross(facedir_toside.front[facedir], facedir_toside.left[facedir])
   facedir_toside.top[facedir] = vector.multiply(facedir_toside.bottom[facedir], -1)
 end
-function appliances.get_side_pos(pos_from, side)
-  local node_from = minetest.get_node(pos_from);
+function appliances.get_side_pos(pos_from, node_from, side)
+  if not node_from then
+    node_from = minetest.get_node(pos_from);
+  end
   return vector.add(pos_from, facedir_toside[side][node_from.param2%32])
+end
+function appliances.get_sides_pos(pos_from, node_from, sides)
+  if not node_from then
+    node_from = minetest.get_node(pos_from);
+  end
+  local side_pos = vector.new(pos_from)
+  for _,side in pairs(sides) do
+    side_pos = vector.add(side_pos, facedir_toside[side][node_from.param2%32])
+  end
+  return side_pos
 end
 
 appliances.opposite_side = {
@@ -140,10 +152,12 @@ appliances.opposite_side = {
     top = "bottom",
   }
 
-function appliances.is_connected_to(pos_from, pos_to, sides)
-  local node_from = minetest.get_node(pos_from);
+function appliances.is_connected_to(pos_from, node_from, pos_to, sides)
+  if not node_from then
+    node_from = minetest.get_node(pos_from);
+  end
   for _,side in pairs(sides) do
-    local side_pos = appliances.get_side_pos(pos_from, side);
+    local side_pos = appliances.get_side_pos(pos_from, node_from, side);
     if vector.equals(pos_to, side_pos) then
       return side
     end

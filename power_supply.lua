@@ -262,3 +262,9 @@ if appliances.have_technic then
   appliances.add_power_supply("HV_power", power_supply)
 end
 
+-- elapower
+-- 16 EpU  equvivalent to 200 EU from technic (coal fired generator)
+
+-- techpack
+-- 80 ku equvivalent to 200 EU from technic (coal-fired generator)
+
