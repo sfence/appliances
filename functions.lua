@@ -102,13 +102,21 @@ function appliances.register_craft(craft_def)
         })
     end
     if appliances.have_i3 then
-      minetest.register_on_mods_loaded(function()
-          i3.register_craft({
-              type = craft_def.type,
-              result = craft_def.output,
-              items = items,
-            })
-        end)
+      if minetest.global_exists("i3") then
+        i3.register_craft({
+            type = craft_def.type,
+            result = craft_def.output,
+            items = items,
+          })
+      else
+        minetest.register_on_mods_loaded(function()
+            i3.register_craft({
+                type = craft_def.type,
+                result = craft_def.output,
+                items = items,
+              })
+          end)
+      end
     end
   end
 end

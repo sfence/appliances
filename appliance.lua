@@ -154,6 +154,56 @@ appliance.stoppable_consumption = true;
 
 appliance.have_control = false;
 
+function appliance:craftguides_add_input_recipe(input_name, input_def)
+  if self.recipe_input_type then
+    if (self.input_stack_size <= 1) then
+      for _, outputs in pairs(input_def.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
+        end
+        local item = ItemStack(input_name);
+        item:set_count(input_def.inputs or 1);
+        appliances.register_craft({
+            type = self.recipe_input_type,
+            output = ItemStack(outputs):to_string(),
+            items = {item:to_string()},
+          })
+      end
+    else
+      for _, outputs in pairs(input_def.outputs) do
+        if (type(outputs)=="table") then
+          outputs = outputs[1];
+        end
+        local items = {};
+        for _, item in pairs(input_def.inputs) do
+          table.insert(items, ItemStack(item):to_string());
+        end
+        appliances.register_craft({
+            type = self.recipe_input_type,
+            output = ItemStack(outputs):to_string(),
+            items = items,
+            width = self.input_stack_width,
+          })
+      end
+    end
+  end
+end
+function appliance:craftguides_add_usage_recipe(usage_name, usage_def)
+  if self.recipe_usage_type then
+    for _, outputs in pairs(usage_def.outputs) do
+      if (type(outputs)=="table") then
+        outputs = outputs[1];
+      end
+      local item = ItemStack(usage_name):to_string();
+      appliances.register_craft({
+          type = self.recipe_usage_type,
+          output = self.node_name_inactive,
+          items = {item},
+        })
+    end
+  end
+end
+
 function appliance:recipe_register_input(input_name, input_def)
   if (not self.have_input) then
     minetest.log("error", "[Appliances]: Input is disabled. Registration of input recipe cannot be finished.");
@@ -161,6 +211,8 @@ function appliance:recipe_register_input(input_name, input_def)
   end
   if (self.input_stack_size <= 1) then
     self.recipes.inputs[input_name] = input_def;
+    
+    self:craftguides_add_input_recipe(input_name, input_def)
   else
     local register = true;
     for index, value in pairs(input_def.inputs) do
@@ -172,6 +224,8 @@ function appliance:recipe_register_input(input_name, input_def)
     end
     if register then
       table.insert(self.recipes.inputs, input_def);
+      
+      self:craftguides_add_input_recipe(input_name, input_def)
     end
   end
 end
@@ -184,6 +238,8 @@ function appliance:recipe_register_usage(usage_name, usage_def)
     self.recipes.usages = {};
   end
   self.recipes.usages[usage_name] = usage_def;
+  
+  self:craftguides_add_usage_recipe(usage_name, usage_def)
 end
 
 function appliance:recipe_aviable_input(inventory)
@@ -1105,59 +1161,18 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
 end
 
 -- register recipes to unified_inventory/craftguide/i3
-function appliance:register_recipes(inout_type, usage_type)
+function appliance:register_recipes(input_type, usage_type)
+  self.recipe_input_type = input_type
+  self.recipe_usage_type = usage_type
   if self.have_input and (self.recipes.inputs~=nil) then
-    if (self.input_stack_size<=1) then
-      for input, recipe in pairs(self.recipes.inputs) do
-        for _, outputs in pairs(recipe.outputs) do
-          if (type(outputs)~="function") then
-            if (type(outputs)=="table") then
-              outputs = outputs[1];
-            end
-            local item = ItemStack(input);
-            item:set_count(recipe.inputs);
-            appliances.register_craft({
-                type = inout_type,
-                output = ItemStack(outputs):to_string(),
-                items = {item:to_string()},
-              })
-          end
-        end
-      end
-    else
-      for input, recipe in pairs(self.recipes.inputs) do
-        for _, outputs in pairs(recipe.outputs) do
-          if (type(outputs)=="table") then
-            outputs = outputs[1];
-          end
-          local items = {};
-          for _, item in pairs(recipe.inputs) do
-            table.insert(items, ItemStack(item):to_string());
-          end
-          appliances.register_craft({
-              type = inout_type,
-              output = ItemStack(outputs):to_string(),
-              items = items,
-              width = self.input_stack_width,
-            })
-        end
-      end
+    for input, recipe in pairs(self.recipes.inputs) do
+      self:craftguides_add_input_recipe(input, recipe)
     end
   end
   
   if (self.have_usage) and (self.recipes.usages~=nil) then
     for input, usage in pairs(self.recipes.usages) do
-      for _, outputs in pairs(usage.outputs) do
-        if (type(outputs)=="table") then
-          outputs = outputs[1];
-        end
-        local item = ItemStack(input):to_string();
-        appliances.register_craft({
-            type = usage_type,
-            output = self.node_name_inactive,
-            items = {item},
-          })
-      end
+      self:craftguides_add_usage_recipe(input, usage)
     end
   end
 end
