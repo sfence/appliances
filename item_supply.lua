@@ -16,13 +16,13 @@ if appliances.have_pipeworks then
   -- tube can insert
   local appliance = appliances.appliance
   function appliance:tube_can_insert (pos, node, stack, direction, owner)
+    if minetest.is_protected(pos, owner or "") then
+      return false
+    end
     if self.recipes then
       if self.have_input then
         if (self.input_stack_size <= 1) then
-          local input = self.recipes.inputs[stack:get_name()];
-          if input then
-            return self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil);
-          end
+          return self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil);
         else
           for index = 1,self.input_stack_size do
             local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
@@ -33,25 +33,22 @@ if appliances.have_pipeworks then
         end
       end
       if self.have_usage then
-        local usage = self.recipes.usages[stack:get_name()];
-        if usage then
-          return self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil);
-        end
+        return self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil);
       end
     end
     return false;
   end
   function appliance:tube_insert (pos, node, stack, direction, owner)
+    if minetest.is_protected(pos, owner or "") then
+      return stack
+    end
     if self.recipes then
       local meta = minetest.get_meta(pos);
       local inv = meta:get_inventory();
       
       if self.have_input then
         if (self.input_stack_size <= 1) then
-          local input = self.recipes.inputs[stack:get_name()];
-          if input then
-            return inv:add_item(self.input_stack, stack);
-          end
+          return inv:add_item(self.input_stack, stack);
         else
           for index = 1,self.input_stack_size do
             local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
@@ -65,10 +62,7 @@ if appliances.have_pipeworks then
         end
       end
       if self.have_usage then
-        local usages = self.recipes.usages[stack:get_name()];
-        if usages then
-          return inv:add_item(self.use_stack, stack);
-        end
+        return inv:add_item(self.use_stack, stack);
       end
     end
     

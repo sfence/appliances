@@ -1,4 +1,6 @@
 
+local S = appliances.translator
+
 appliances.all_sides = {"right", "left", "front", "back", "top", "bottom"}
 
 appliances.appliance = {};
@@ -584,6 +586,17 @@ function appliance:update_state(pos, meta, state)
   self:cb_play_sound(pos, meta, self:get_state(meta), state);
   self:set_state(meta, state);
 end
+local infotexts = {
+  active=S("active"),
+  idle=S("idle"),
+  running=S("producting"),
+  waiting=S("waiting"),
+  nopower=S("unpowered"),
+}
+function appliance:get_infotext(pos, meta, state)
+	return self.node_description.." - "..infotexts[state]
+end
+appliances.state_infotexts = infotexts
 
 function appliance:cb_activate(pos, meta)
 end
@@ -595,7 +608,7 @@ function appliance:activate(pos, meta)
     end
     timer:start(1)
     self:power_need(pos, meta)
-	  meta:set_string(self.meta_infotext, self.node_description.." - active")
+	  meta:set_string(self.meta_infotext, self:get_infotext(pos, meta, "active"))
     
     self:call_activate(pos, meta)
     self:cb_activate(pos, meta)
@@ -610,7 +623,7 @@ function appliance:deactivate(pos, meta)
   self:update_formspec(meta, 0, 0, 0, 0)
   appliances.swap_node(pos, self.node_name_inactive);
   self:power_idle(pos, meta)
-	meta:set_string(self.meta_infotext, self.node_description.." - idle")
+	meta:set_string(self.meta_infotext, self:get_infotext(pos, meta, "idle"))
   self:call_deactivate(pos, meta)
   self:cb_deactivate(pos, meta)
   
@@ -621,7 +634,7 @@ end
 function appliance:running(pos, meta)
   appliances.swap_node(pos, self.node_name_active);
   self:power_need(pos, meta)
-	meta:set_string(self.meta_infotext, self.node_description.." - producting")
+	meta:set_string(self.meta_infotext, self:get_infotext(pos, meta, "running"))
   self:call_running(pos, meta)
   self:cb_running(pos, meta)
   self:update_state(pos, meta, "running")
@@ -635,7 +648,7 @@ function appliance:waiting(pos, meta)
     appliances.swap_node(pos, self.node_name_inactive);
   end
   self:power_idle(pos, meta)
-	meta:set_string(self.meta_infotext, self.node_description.." - waiting")
+	meta:set_string(self.meta_infotext, self:get_infotext(pos, meta, "waiting"))
   self:call_waiting(pos, meta)
   self:cb_waiting(pos, meta)
   self:update_state(pos, meta, "waiting")
@@ -649,20 +662,30 @@ function appliance:no_power(pos, meta)
     appliances.swap_node(pos, self.node_name_inactive);
   end
   self:power_need(pos, meta)
-  meta:set_string(self.meta_infotext, self.node_description.." - unpowered")
+  meta:set_string(self.meta_infotext, self:get_infotext(pos, meta, "nopower"))
   self:call_no_power(pos, meta)
   self:cb_no_power(pos, meta)
   self:update_state(pos, meta, "nopower")
 end
 
 -- appliance node callbacks
-function appliance:cb_can_dig(pos)
+function appliance:cb_can_dig(pos, player)
+  if player then
+    if minetest.is_protected(pos, player:get_player_name()) then
+      return false
+    end
+  end
   local meta = minetest.get_meta(pos)
   if (not self:call_can_dig(pos, meta)) then
     return false;
   end
   local inv = meta:get_inventory()
-  return inv:is_empty(self.input_stack) and inv:is_empty(self.output_stack)
+  if self.input_stack_size>0 then
+    if not inv:is_empty(self.input_stack) then
+      return false
+    end
+  end
+  return (self.output_stack_size==0) or inv:is_empty(self.output_stack)
 end
 
 function appliance:cb_after_dig_node(pos, oldnode, oldmetadata, digger)
@@ -886,9 +909,6 @@ function appliance:update_meta_formspec(timer_step)
   end
 end
 
-function appliance:cb_on_production(timer_step)
-end
-
 function appliance:cb_on_timer(pos, elapsed)
   local meta = minetest.get_meta(pos);
   local timer_step = {
@@ -950,6 +970,7 @@ function appliance:cb_on_timer(pos, elapsed)
   self:update_meta_formspec(timer_step);
   
   -- cb_on_production callback
+  self:call_on_production(timer_step);
   self:cb_on_production(timer_step);
   
   -- have aviable production recipe?
@@ -1131,8 +1152,8 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
   if node_def_waiting then
     node_def_waiting.groups.not_in_creative_inventory = 1;
     
-    self:call_update_node_active_def(node_def_waiting);
-    self:cb_after_update_node_active_def(node_def_waiting);
+    self:call_update_node_waiting_def(node_def_waiting);
+    self:cb_after_update_node_waiting_def(node_def_waiting);
   end
   
   if inactive_def then
@@ -1219,6 +1240,17 @@ function appliance:call_no_power(pos, meta)
   end
 end
 
+function appliance:call_on_production(timer_step)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.on_production then
+      extension.on_production(self, extension_data, timer_step)
+    end
+  end
+end
+function appliance:cb_on_production(timer_step)
+end
+
 function appliance:call_update_node_def(node_def)
   for extension_name, extension_data in pairs(self.extensions_data) do
     local extension = appliances.all_extensions[extension_name]
@@ -1250,6 +1282,17 @@ function appliance:call_update_node_active_def(node_def)
   end
 end
 function appliance:cb_after_update_node_active_def(node_def)
+end
+
+function appliance:call_update_node_waiting_def(node_def)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.update_node_waiting_def then
+      extension.update_node_waiting_def(self, extension_data, node_def)
+    end
+  end
+end
+function appliance:cb_after_update_node_waiting_def(node_def)
 end
 
 function appliance:call_after_register_node()

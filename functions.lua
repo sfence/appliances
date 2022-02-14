@@ -1,4 +1,6 @@
 
+local S = appliances.translator
+
 local use_craftguide = nil;
 if minetest.global_exists("craftguide") then
   use_craftguide = craftguide;

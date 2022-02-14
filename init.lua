@@ -3,6 +3,8 @@ appliances = {};
 
 local modpath = minetest.get_modpath(minetest.get_current_modname());
 
+appliances.translator = minetest.get_translator("appliances")
+
 appliances.have_mesecons = (minetest.get_modpath("mesecons")~=nil) or (minetest.get_modpath("hades_mesecons")~=nil);
 appliances.have_pipeworks = minetest.get_modpath("pipeworks")~=nil;
 appliances.have_technic = (minetest.get_modpath("technic")~=nil) or (minetest.get_modpath("hades_technic")~=nil);
