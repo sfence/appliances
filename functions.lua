@@ -175,3 +175,15 @@ function appliances.is_connected_to(pos_from, node_from, pos_to, sides)
   return nil
 end
 
+function appliances.add_item_help(item_name, text_to_add)
+  local def = minetest.registered_items[item_name]
+  if appliances.have_tt then
+    minetest.override_item(item_name, {
+        _tt_help = (def._tt_help or "").."\n"..text_to_add
+      })
+  else
+    minetest.override_item(item_name, {
+        description = def.description.."\n"..text_to_add
+      })
+  end
+end
