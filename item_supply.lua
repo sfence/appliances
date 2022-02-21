@@ -22,10 +22,10 @@ if appliances.have_pipeworks then
     if self.recipes then
       if self.have_input then
         if (self.input_stack_size <= 1) then
-          return self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil);
+          return self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, owner);
         else
           for index = 1,self.input_stack_size do
-            local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
+            local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, owner);
             if (can_insert~=0) then
               return can_insert;
             end
@@ -33,7 +33,7 @@ if appliances.have_pipeworks then
         end
       end
       if self.have_usage then
-        return self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil);
+        return self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, owner);
       end
     end
     return false;
@@ -51,7 +51,7 @@ if appliances.have_pipeworks then
           return inv:add_item(self.input_stack, stack);
         else
           for index = 1,self.input_stack_size do
-            local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, nil);
+            local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, index, stack, owner);
             if (can_insert~=0) then
               local input_stack = inv:get_stack(self.input_stack,index);
               local remind = input_stack:add_item(stack);

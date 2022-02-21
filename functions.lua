@@ -178,8 +178,14 @@ end
 function appliances.add_item_help(item_name, text_to_add)
   local def = minetest.registered_items[item_name]
   if appliances.have_tt then
+    local tt_help = def._tt_help
+    if not tt_help then
+      tt_help = ""
+    else
+      tt_help = tt_help .. "\n"
+    end
     minetest.override_item(item_name, {
-        _tt_help = (def._tt_help or "").."\n"..text_to_add
+        _tt_help = tt_help..text_to_add
       })
   else
     minetest.override_item(item_name, {

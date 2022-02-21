@@ -404,9 +404,9 @@ function appliance:recipe_step_size(step_size)
   return int_step_size;
 end
 
-function appliance:recipe_inventory_can_put(pos, listname, index, stack, player)
-  if player then
-    if minetest.is_protected(pos, player:get_player_name()) then
+function appliance:recipe_inventory_can_put(pos, listname, index, stack, player_name)
+  if player_name then
+    if minetest.is_protected(pos, player_name) then
       return 0
     end
   end
@@ -451,9 +451,9 @@ function appliance:recipe_inventory_can_put(pos, listname, index, stack, player)
   return 0
 end
 
-function appliance:recipe_inventory_can_take(pos, listname, index, stack, player)
-  if player then
-    if minetest.is_protected(pos, player:get_player_name()) then
+function appliance:recipe_inventory_can_take(pos, listname, index, stack, player_name)
+  if player_name then
+    if minetest.is_protected(pos, player_name) then
       return 0
     end
   end
@@ -986,11 +986,19 @@ function appliance:cb_allow_metadata_inventory_move(pos, from_list, from_index, 
 end
 
 function appliance:cb_allow_metadata_inventory_put(pos, listname, index, stack, player)
-  return self:recipe_inventory_can_put(pos, listname, index, stack, player);
+  local player_name = nil
+  if player then
+    player_name = player:get_player_name()
+  end
+  return self:recipe_inventory_can_put(pos, listname, index, stack, player_name);
 end
 
 function appliance:cb_allow_metadata_inventory_take(pos, listname, index, stack, player)
-  return self:recipe_inventory_can_take(pos, listname, index, stack, player);
+  local player_name = nil
+  if player then
+    player_name = player:get_player_name()
+  end
+  return self:recipe_inventory_can_take(pos, listname, index, stack, player_name);
 end
 
 function appliance:cb_on_metadata_inventory_move(pos, from_list, from_index, to_list, to_index, count, player)
