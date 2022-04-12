@@ -211,7 +211,7 @@ See [Appliance object definition] for definition description.
 			production_time = 160,
 			-- change usage consumption speed (1 means no change)
 			consumption_step_size = 1,
-			-- optional function for update output items list, when production is finished
+			-- optional function for update output items list, when production is finished, return new outputs list
 			on_done = function(self, timer_step, outputs),
 		}
 
@@ -230,7 +230,7 @@ See [Appliance object definition] for definition description.
 			consumption_time = 60,
 			-- speed of production output (1 means no change)
 			production_step_size = 1,
-			-- optional function for update output items list, when item is consumpted
+			-- optional function for update output items list, when item is consumpted, return new outputs list
 			on_done = function(self, timer_step, outputs),
 		}
 
