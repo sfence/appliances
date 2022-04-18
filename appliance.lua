@@ -272,6 +272,16 @@ function appliance:recipe_aviable_input(inventory)
             break;
           end
         end
+        if valid and (check.require_usage~=nil) then
+          valid = false
+          if (self.have_usage) then
+            local usage_stack = inventory:get_stack(self.use_stack, 1)
+            local usage_name = usage_stack:get_name();
+            if (check.require_usage[usage_name]) then
+              valid = true
+            end
+          end
+        end
         if valid then
           input = check;
           break;

@@ -193,3 +193,4 @@ function appliances.add_item_help(item_name, text_to_add)
       })
   end
 end
+
