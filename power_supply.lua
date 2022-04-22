@@ -264,6 +264,70 @@ end
 
 -- elapower
 -- 16 EpU  equvivalent to 200 EU from technic (coal fired generator)
+if minetest.get_modpath("elepower_papi") then
+  local power_supply = 
+    {
+      is_powered = function (self, power_data, pos, meta)
+          local capacity   = ele.helpers.get_node_property(meta, pos, "capacity")
+          local usage   = ele.helpers.get_node_property(meta, pos, "usage")
+          local storage   = ele.helpers.get_node_property(meta, pos, "storage")
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          if (storage>=demand) then
+            return power_data.run_speed;
+          end
+          return 0;
+        end,
+      power_need = function (self, power_data, pos, meta)
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          meta:set_int("usage", demand)
+          
+          if not power_data.ele_capacity then
+            -- like no real usable storage?
+            local storage   = ele.helpers.get_node_property(meta, pos, "storage")
+            demand = demand*2
+            if storage<demand then
+              meta:set_int("capacity", 2*demand)
+            else
+              meta:set_int("capacity", storage)
+            end
+          end
+        end,
+      power_idle = function (self, power_data, pos, meta)
+          meta:set_int("usage", 0)
+        end,
+      no_power = function(self, power_data, pos, meta)
+          meta:set_string("infotext", meta:get_string("infotext").." (Active)");
+        end,
+      running = function(self, power_data, pos, meta)
+          meta:set_string("infotext", meta:get_string("infotext").." (Active)");
+          
+          local storage   = ele.helpers.get_node_property(meta, pos, "storage")
+          local usage   = ele.helpers.get_node_property(meta, pos, "usage")
+          
+          meta:set_int("storage", math.max(storage-usage, 0))
+        end,
+      update_node_def = function (self, power_data, node_def)
+          node_def.groups.ele_user = 1;
+          node_def.groups.ele_machine = 1;
+          node_def.ele_active_node = true
+          node_def.ele_capacity = power_data.ele_capacity or 128
+          node_def.ele_inrush = power_data.ele_inrush or 64
+          node_def.ele_usage = power_data.ele_usage or 64
+          node_def.ele_output = power_data.ele_output or 0
+          --sides is not supported by elapowers at time of writing this
+          --node_def.ela_sides = ???
+        end,
+      on_construct = function (self, power_data, pos, meta)
+          local meta = minetest.get_meta(pos);
+          meta:set_string("storage", 0);
+          ele.clear_networks(pos)
+        end,
+      after_destruct = function (self, power_data, pos, meta)
+          ele.clear_networks(pos)
+        end,
+    };
+  appliances.add_power_supply("elepower_power", power_supply)
+end
 
 -- techpack
 -- 80 ku equvivalent to 200 EU from technic (coal-fired generator)
