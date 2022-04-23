@@ -258,6 +258,11 @@ Appliance mod part for add some specific functionality/dependency.
 * LV_power (technic mod)
 * MV_power (technic mod)
 * HV_power (technic mod)
+* elepower_power (modpack elepower)
+* techage_axle_power (techage mod)
+* techage_electric_power (techage mod)
+
+Examples (use only subset of them):
 
 		appliance:power_data_register({
 			["no_power"] = {
@@ -289,6 +294,25 @@ Appliance mod part for add some specific functionality/dependency.
 				get_demand = function(self, pos, meta)
 				  return 100
 				end,
+				-- can be used to disable some power data if this power type is registered/aviable
+				disable = {"no_power"},
+			},
+			["elepower_power"] = {
+				-- run speed if this power data is used
+				run_speed = 1,
+				-- demand or get_demand
+				demand = 8,
+				get_demand = function(self, pos, meta)
+				  return 100
+				end,
+				-- can be used to disable some power data if this power type is registered/aviable
+				disable = {"no_power"},
+			},
+			["techage_electric_power"] = {
+				-- run speed if this power data is used
+				run_speed = 1,
+				-- demand
+				demand = 40,
 				-- can be used to disable some power data if this power type is registered/aviable
 				disable = {"no_power"},
 			},
@@ -338,10 +362,18 @@ This functions can be defined in supply definition.
 ### Predefined
 
 * tube_item (mod pipeworks)
+* techage_item (mod techage)
+* minecart_item (mod minecart)
+
+Example:
 
 		appliance:supply_data_register({
 			["tube_item"] = {
 				-- add pipeworks tube support
+				-- no special data is required
+			},
+			["techage_item"] = {
+				-- add techage tube support
 				-- no special data is required
 			},
 		})
