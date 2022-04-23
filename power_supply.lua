@@ -331,4 +331,113 @@ end
 
 -- techpack
 -- 80 ku equvivalent to 200 EU from technic (coal-fired generator)
+--
+if minetest.get_modpath("techage") then
+  local power = techage.power
+  local networks = techage.networks
+  local Pipe = techage.LiquidPipe
+  local liquid = techage.liquid
+  
+  local side_to_taside = {
+    front = "F",
+    back = "B",
+    right = "R",
+    left = "L",
+    bottom = "D",
+    top = "U",
+  }
+  
+  local is_running = function(pos)
+    local meta = minetest.get_meta(pos)
+    local state = meta:get("state") or "idle"
+    return state=="running"
+  end
+  
+  local CRD = function(pos) return (minetest.registered_nodes[techage.get_node_lvm(pos).name] or {}).consumer end
+  local CRDN = function(node) return (minetest.registered_nodes[node.name] or {}).consumer end
+  
+  -- TA2
+  -- TA3 (TE4 ?)
+
+  local power_supply = 
+    {
+      is_powered = function (self, power_data, pos, meta)
+          if power.power_available(pos, techage.ElectricCable) then
+            return power_data.run_speed;
+          end
+          return 0
+        end,
+      power_need = function (self, power_data, pos, meta)
+          power.consumer_start(pos, techage.ElectricCable, 1)
+        end,
+      power_idle = function (self, power_data, pos, meta)
+          power.consumer_stop(pos, techage.ElectricCable)
+        end,
+      update_node_def = function (self, power_data, node_def)
+          local network = {
+            sides = {},
+            ntype = "con1",
+            nominal = power_data.demand,
+            --on_power = fuction(pos) end,
+            --on_nopower = function(pos) end,
+            is_running = function(pos, nvm) return is_running(pos) end,
+					}
+          for _,side in pairs(self.power_connect_sides) do
+            network.sides[side_to_taside[side]] = 1
+          end
+          --[[
+          local tState = techage.NodeStates:new({
+            cycle_time = 1,
+            standby_ticks = 4,
+            node_name_passive = nil,
+            node_name_active = nil,
+            infotext_name = nil,
+            formspec_func = nil,
+            on_state_change = tNode.on_state_change,
+            can_start = tNode.can_start,
+            has_power = tNode.has_power or power_used and has_power or nil,
+            start_node = power_used and start_node or nil,
+            stop_node = power_used and stop_node or nil,
+          })
+          --]]
+
+          local tConsumer = {
+            --stage = stage,
+            --State = tState,
+            -- number of items to be processed per cycle
+            --num_items = tNode.num_items and tNode.num_items[stage],
+            --power_consumption = power_used and 
+            --tNode.power_consumption[stage] or 0,
+            --node_timer = tNode.node_timer,
+            --cycle_time = tNode.cycle_time,
+            --power_netw_ta2 = power_network,
+          }  
+          
+          node_def.networks = node_def.networks or {}
+          node_def.networks.ele1 = network
+        end,
+      after_register_node = function(self, power_data)
+          local node_names = {
+              self.node_name_inactive,
+              self.node_name_active,
+            }
+          if self.node_name_waiting then
+            table.insert(node_names, self.node_name_waiting)
+          end
+          techage.ElectricCable:add_secondary_node_names(node_names)
+        end,
+      on_construct = function (self, power_data, pos, meta)
+          local meta = minetest.get_meta(pos);
+        end,
+      after_place_node = function (self, power_data, pos, placer, itemstack, pointed_thing)
+          techage.ElectricCable:after_place_node(pos)
+        end,
+      after_dig_node = function (self, power_data, pos, oldnode, oldmnetadata, digger)
+          techage.ElectricCable:after_dig_node(pos)
+          techage.remove_node(pos, oldnode, oldmetadata)
+          techage.del_mem(pos)
+        end,
+    };
+  appliances.add_power_supply("techage_electric_power", power_supply)
+end
 
