@@ -718,9 +718,15 @@ end
 
 function appliance:cb_on_blast(pos, intensity)
   local drops = {}
-  default.get_inventory_drops(pos, self.input_stack, drops)
-  default.get_inventory_drops(pos, self.use_stack, drops)
-  default.get_inventory_drops(pos, self.output_stack, drops)
+  if self.have_input then
+    default.get_inventory_drops(pos, self.input_stack, drops)
+  end
+  if self.have_usage then
+    default.get_inventory_drops(pos, self.use_stack, drops)
+  end
+  if self.output_stack_size>0 then
+    default.get_inventory_drops(pos, self.output_stack, drops)
+  end
   table.insert(drops, self.node_name_inactive)
   minetest.remove_node(pos)
   self:call_on_blast(pos, intensity)
