@@ -1,4 +1,6 @@
 
+local S = appliances.translator
+
 appliances.power_supplies = {}
 
 function appliances.add_power_supply(supply_name, power_supply)
@@ -25,6 +27,7 @@ end
 if true then
   local power_supply = 
     {
+      hard_help = "time",
       is_powered = function (self, power_supply, pos, meta)
           return power_supply.run_speed;
         end,
@@ -36,6 +39,7 @@ end
 if true then
   local power_supply = 
     {
+      hard_help = "punching",
       is_powered = function (self, power_supply, pos, meta)
           local is_powered = meta:get_int("is_powered");
           if (is_powered>0) then
@@ -63,6 +67,7 @@ end
 if appliances.have_mesecons then
   local power_supply = 
     {
+      hard_help = S("active mese"),
       is_powered = function (self, power_supply, pos, meta)
           local is_powered = meta:get_int("is_powered");
           if (is_powered~=0) then
@@ -92,6 +97,7 @@ if appliances.have_technic then
   -- LV
   local power_supply = 
     {
+      units = S("LV EU"),
       is_powered = function (self, power_data, pos, meta)
           local eu_input = meta:get_int("LV_EU_input");
           local demand = power_data.demand or power_data.get_demand(self, pos, meta)
@@ -149,6 +155,7 @@ if appliances.have_technic then
   -- MV
   local power_supply = 
     {
+      units = S("MV EU"),
       is_powered = function (self, power_data, pos, meta)
           local eu_input = meta:get_int("MV_EU_input");
           local demand = power_data.demand or power_data.get_demand(self, pos, meta)
@@ -206,6 +213,7 @@ if appliances.have_technic then
   -- HV
   local power_supply = 
     {
+      units = S("HV EU"),
       is_powered = function (self, power_data, pos, meta)
           local eu_input = meta:get_int("HV_EU_input");
           local demand = power_data.demand or power_data.get_demand(self, pos, meta)
@@ -267,6 +275,7 @@ end
 if minetest.get_modpath("elepower_papi") then
   local power_supply = 
     {
+      units = S("HV EpU"),
       is_powered = function (self, power_data, pos, meta)
           local capacity   = ele.helpers.get_node_property(meta, pos, "capacity")
           local usage   = ele.helpers.get_node_property(meta, pos, "usage")
@@ -359,6 +368,7 @@ if minetest.get_modpath("techage") then
   -- TA2
   local power_supply = 
     {
+      units = S("TA axle"),
       is_powered = function (self, power_data, pos, meta)
           if power.power_available(pos, techage.Axle) then
             return power_data.run_speed;
@@ -414,6 +424,7 @@ if minetest.get_modpath("techage") then
   -- TA3 (TE4 ?)
   local power_supply = 
     {
+      units = S("ku"),
       is_powered = function (self, power_data, pos, meta)
           if power.power_available(pos, techage.ElectricCable) then
             return power_data.run_speed;

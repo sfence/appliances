@@ -189,6 +189,14 @@ See [Appliance object definition] for definition description.
 
 * Take only useful control_data.
 
+### appliance:get_power_help(prefix, suffix, separator)
+
+* default values: prefix=\"\", suffix=\"\" and separator="/"
+* Should be called after method 'power_data_register'
+* Generate description power string for powered nodes which require some units of power.
+* require 'units' or 'hard_help'  field in power supply definition
+* require field 'help_units' or 'demand_min' or 'demand_max' or 'demand' in power data.
+
 ### appliance:recipe_register_input(input_name, input_def)
 
 * Registration of input recipe.

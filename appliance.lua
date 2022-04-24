@@ -93,6 +93,43 @@ function appliance:control_data_register(control_data)
   self.control_data = disable_supplies_data(control_data);
 end
 
+function appliance:get_power_help(prefix, suffix, separator)
+  local help = ""
+  if not separator then
+    separator = "/"
+  end
+  for supply_name, supply_data in pairs(self.power_data) do
+    local supply = appliances.power_supplies[supply_name]
+    if supply.units then
+      if help~="" then
+        help = help .. separator
+      end
+      if supply_data.help_units then
+        help = help..supply_data.help_units
+      elseif supply_data.demand_min and supply_data.demand_max then
+        help = help..supply_data.demand_min.." - "..supply_data.demand_max.." "..supply.units
+      elseif supply_data.demand_min then
+        help = help..supply_data.demand_min.."+ "..supply.units
+      elseif supply_data.demand_max then
+        help = help.." 0 - "..supply_data.demand_max.." "..supply.units
+      elseif supply_data.demand then
+        help = help..supply_data.demand.." "..supply.units
+      elseif supply_data.get_demand then
+        minetest.log("warning", "[appliances] Node "..self.node_name_inactive.." supply data "..supply_name.." has no data for generate consume power units helpription.")
+      end
+    elseif supply.hard_help then
+      if help~="" then
+        help = help .. separator
+      end
+      help = help .. supply.hard_help
+    end
+  end
+  if help~="" then
+    help = (prefix or "")..help..(suffix or "")
+  end
+  return help
+end
+
 function appliance:is_powered(pos, meta)
   for supply_name, supply_data in pairs(self.power_data) do
     local supply = appliances.power_supplies[supply_name]
