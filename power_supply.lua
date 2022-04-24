@@ -275,7 +275,7 @@ end
 if minetest.get_modpath("elepower_papi") then
   local power_supply = 
     {
-      units = S("HV EpU"),
+      units = S("EpU"),
       is_powered = function (self, power_data, pos, meta)
           local capacity   = ele.helpers.get_node_property(meta, pos, "capacity")
           local usage   = ele.helpers.get_node_property(meta, pos, "usage")

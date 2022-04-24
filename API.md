@@ -263,12 +263,12 @@ Appliance mod part for add some specific functionality/dependency.
 * time_power
 * punch_power
 * mesecons_power (modpack mesecons)
-* LV_power (technic mod)
+* LV_power (technic mod - fire powered generator 200 LV EU)
 * MV_power (technic mod)
 * HV_power (technic mod)
-* elepower_power (modpack elepower)
+* elepower_power (modpack elepower - 16 EpU ~= 200 LV EU)
 * techage_axle_power (techage mod)
-* techage_electric_power (techage mod)
+* techage_electric_power (techage mod - 80 ku ~= 200 LV EU)
 
 Examples (use only subset of them):
 
