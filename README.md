@@ -16,6 +16,6 @@ All textures not mentioned below.
 
 Introduction
 ------------
-This mod provides api for easier creation of appliances which can consume something, production something, uses technic/mesecon power, needs to be conected to water pipe and supports pipeworks tubes.
+This mod provides api for easier creation of appliances which can consume something, production something, uses punch/mesecon/technic/elepower/techage/factory power, needs to be conected to water pipe and supports pipeworks tubes/techage tube and etc.
 
 

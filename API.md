@@ -176,6 +176,7 @@ See [Appliance object definition] for definition description.
 ### appliance:power_data_register(power_data)
 
 * Take only useful power_data.
+* Always should be used. For machines without power requirements, use power_data '{time_power={}}'.
 
 ### appliance:item_data_register(item_data)
 
@@ -269,6 +270,7 @@ Appliance mod part for add some specific functionality/dependency.
 * elepower_power (modpack elepower - 16 EpU ~= 200 LV EU)
 * techage_axle_power (techage mod)
 * techage_electric_power (techage mod - 80 ku ~= 200 LV EU)
+* factory_power (mod factory - 10 Factory EU ~= 200 LV EU)
 
 Examples (use only subset of them):
 
@@ -311,7 +313,7 @@ Examples (use only subset of them):
 				-- demand or get_demand
 				demand = 8,
 				get_demand = function(self, pos, meta)
-				  return 100
+				  return 8
 				end,
 				-- can be used to disable some power data if this power type is registered/aviable
 				disable = {"no_power"},
@@ -321,6 +323,17 @@ Examples (use only subset of them):
 				run_speed = 1,
 				-- demand
 				demand = 40,
+				-- can be used to disable some power data if this power type is registered/aviable
+				disable = {"no_power"},
+			},
+			["factory_power"] = {
+				-- run speed if this power data is used
+				run_speed = 1,
+				-- demand or get_demand
+				demand = 5,
+				get_demand = function(self, pos, meta)
+				  return 5
+				end,
 				-- can be used to disable some power data if this power type is registered/aviable
 				disable = {"no_power"},
 			},

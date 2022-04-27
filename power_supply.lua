@@ -478,3 +478,53 @@ if minetest.get_modpath("techage") then
   appliances.add_power_supply("techage_electric_power", power_supply)
 end
 
+-- factory
+-- 16 EU  equvivalent to 200 EU from technic (coal fired generator)
+if minetest.get_modpath("factory") then
+  local device = factory.electronics.device
+  
+  local function on_push_electricity(pos, energy)
+    local meta = minetest.get_meta(pos)
+    local stored = meta:get_int("factory_energy")
+    local capacity = meta:get_int("factory_max_charge")
+    meta:set_int("factory_energy", math.min(stored + energy, capacity))
+    return math.max(energy - (capacity - stored), 0)
+  end
+  
+  local power_supply = 
+    {
+      units = S("Factory EU"),
+      is_powered = function (self, power_data, pos, meta)
+          local stored = meta:get_int("factory_energy")
+          
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          if (stored>=demand) then
+            meta:set_int("factory_usage", demand)
+            return power_data.run_speed;
+          end
+          return 0;
+        end,
+      power_idle = function (self, power_data, pos, meta)
+          meta:set_int("factory_usage", 0)
+        end,
+      running = function(self, power_data, pos, meta)
+          local stored   = meta:get_int("factory_energy")
+          local usage   = meta:get_int("factory_usage")
+          
+          meta:set_int("factory_energy", stored-usage)
+        end,
+      update_node_def = function (self, power_data, node_def)
+          node_def.groups.factory_electronic = 1;
+          --sides is not supported by factory at time of writing this
+          --node_def.ela_sides = ???
+          node_def.on_push_electricity = on_push_electricity;
+        end,
+      on_construct = function (self, power_data, pos, meta)
+          local meta = minetest.get_meta(pos);
+          meta:set_string("factory_energy", 0);
+          meta:set_string("factory_max_charge", power_data.dev_capacity or 20);
+        end,
+    };
+  appliances.add_power_supply("factory_power", power_supply)
+end
+
