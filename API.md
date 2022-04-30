@@ -161,6 +161,25 @@ See example folder for appliance examples.
 				sound_param = {}.
 				repeat_timer = 0,
 			},
+			-- use in state nopower
+			nopower = {
+				sound = <SimpleSoundSpec>,
+				sound_param = {loop = true}.
+        key = "nopower",
+        fade_step = 0.2,
+			},
+			-- use when state is changet from nopower to running
+			nopower_running = {
+				sound = <SimpleSoundSpec>,
+				sound_param = {}.
+        update_sound = function (self, pos, meta, old_state, new_state, sound)
+          -- return edited sound object, DO NOT EDIT ORIGINAL TABLE STORED IN DEFINITION!
+          return {
+            sound = sound.sound
+            sound_param = table.copy(sound.sound_param)
+          }
+        end
+			},
 		}
 	}
 

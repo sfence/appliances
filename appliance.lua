@@ -30,7 +30,7 @@ appliance.output_stack = "output";
 appliance.output_stack_size = 4;
 
 -- sounds
-appliance.sounds = {};
+appliance.sounds = nil;
 
 -- connections
 appliance.items_connect_sides = {"right", "left"}; -- right, left, front, back, top, bottom
@@ -597,29 +597,89 @@ function appliance:update_formspec(meta, production_time, production_goal, consu
   meta:set_string("formspec", self:get_formspec(meta, production_percent, consumption_percent));
 end
 
+appliance.SoundStore = {}
+function appliance:get_soundStore(pos)
+  local hash = minetest.hash_node_position(pos)
+  if not self.SoundStore[hash] then
+    self.SoundStore[hash] = {}
+  end
+  return self.SoundStore[hash]
+end
+function appliance:remove_soundStore(pos)
+  local hash = minetest.hash_node_position(pos)
+  if self.SoundStore[hash] then
+    self.SoundStore[hash] = nil
+  end
+end
+function appliance:stop_sound(pos, stored, sound)
+  if stored.handle then
+    if stored.fade_step then
+      minetest.sound_fade(stored.handle, sound.fade_step, 0)
+    else
+      minetest.sound_stop(stored.handle)
+    end
+  end
+end
+
 -- Inactive/Active 
 function appliance:cb_play_sound(pos, meta, old_state, new_state)
   --print(self.node_name_inactive.." sound from "..old_state.." to "..new_state)
   local sound_key = old_state.."_"..new_state;
-  local sound = self.sounds[sound_key] or self.sounds[new_state]
+  local sound = self.sounds[sound_key]
+  if not sound then
+    sound_key = new_state..""
+    sound =  self.sounds[new_state]
+  end
+  local stored = self:get_soundStore(pos)
   if sound then
-    local sound_time = meta:get_int("sound_time");
-    local play_sound = true;
-    if (sound.repeat_timer~=nil) then
-      if (sound_time>0) then
-        play_sound = false;
-        meta:set_int("sound_time", sound_time-1)
-      else
-        meta:set_int("sound_time", sound.repeat_timer)
+    if sound.update_sound then
+      sound = sound.update_sound(self, pos, meta, old_state, new_state, sound)
+      --print("sound "..dump(sound))
+    end
+    local param = sound.sound_param;
+    if param.gain==0 then
+      self:stop_sound(pos, stored, sound)
+      self:remove_soundStore(pos)
+      meta:set_int("sound_time", 0)
+      return
+    end
+    if param.loop then
+      meta:set_int("sound_time", 0)
+      
+      if (stored.key~=sound.key) then
+        self:stop_sound(pos, meta, stored, sound)
+        local param = table.copy(param)
+        param.pos = pos;
+        stored.handle = minetest.sound_play(sound.sound, param, false)
+        stored.key = sound.key
+        stored.fade_step = sound.fade_step
       end
     else
-      meta:set_int("sound_time", 0)
+      local sound_time = meta:get_int("sound_time");
+      local play_sound = true;
+      if (sound.repeat_timer~=nil) then
+        if (sound_time>0) then
+          play_sound = false;
+          meta:set_int("sound_time", sound_time-1)
+        else
+          meta:set_int("sound_time", sound.repeat_timer)
+        end
+      else
+        meta:set_int("sound_time", 0)
+      end
+      if play_sound then
+        local param = table.copy(param);
+        param.pos = pos
+        minetest.sound_play(sound.sound, param, true);
+        
+        self:stop_sound(pos, stored, sound)
+        self:remove_soundStore(pos)
+      end
     end
-    if play_sound then
-      local param = table.copy(sound.sound_param);
-      param.pos = pos
-      minetest.sound_play(sound.sound, param, true);
-    end
+  else
+    self:stop_sound(pos, stored, sound)
+    self:remove_soundStore(pos)
+    meta:set_int("sound_time", 0)
   end
 end
 
@@ -630,7 +690,9 @@ function appliance:set_state(meta, state)
   return meta:set_string("state", state);
 end
 function appliance:update_state(pos, meta, state)
-  self:cb_play_sound(pos, meta, self:get_state(meta), state);
+  if self.sounds then
+    self:cb_play_sound(pos, meta, self:get_state(meta), state);
+  end
   self:set_state(meta, state);
 end
 local infotexts = {
