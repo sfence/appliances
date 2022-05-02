@@ -12,7 +12,7 @@ end
 
 -- template
 if true then
-  local control = 
+  local control =
     {
       control_wait = function (self, control, pos, meta)
           if control.control_wait then
@@ -117,7 +117,7 @@ end
 
 -- punch
 if true then
-  local control = 
+  local control =
     {
       control_wait = function (self, control, pos, meta)
           local state = meta:get_int("punch_control");
@@ -150,7 +150,7 @@ end
 
 -- mesecons
 if appliances.have_mesecons then
-  local control = 
+  local control =
     {
       control_wait = function (self, control, pos, meta)
           local state = meta:get_int("mesecons_control");
@@ -168,7 +168,7 @@ if appliances.have_mesecons then
           node_def.effector = {
             action_on = function (pos, node)
               minetest.get_meta(pos):set_int("mesecons_control", 1);
-              self:activate(pos, meta);
+              self:activate(pos, minetest.get_meta(pos));
             end,
             action_off = function (pos, node)
               minetest.get_meta(pos):set_int("mesecons_control", 0);
@@ -185,7 +185,7 @@ end
 
 -- digilines
 if appliances.have_digilines then
-  local control = 
+  local control =
     {
       control_wait = function (self, control, pos, meta)
           local state = meta:get_float("digilines_control");

@@ -83,7 +83,7 @@ if appliances.have_pipeworks then
     },
   }
 
-  local liquid_supply = 
+  local liquid_supply =
     {
       -- have_supply function
       have_supply = function(self, liquid_data, pos, meta)
@@ -106,7 +106,7 @@ if appliances.have_pipeworks then
           return 0;
         end,
       update_node_def = function(self, liquid_data, node_def)
-          node_def.pipe_connections = {}; 
+          node_def.pipe_connections = {};
           for _,pipe_side in pairs(self.supply_connect_sides) do
             node_def.pipe_connections[pipe_side] = true;
             if pipe_connections[pipe_side] then

@@ -180,7 +180,7 @@ local recipes = {
         },
     }
 }
---]] 
+--]]
 -- recipes automatizations
 appliance.recipes = {
     inputs = {},
@@ -229,17 +229,12 @@ function appliance:craftguides_add_input_recipe(input_name, input_def)
 end
 function appliance:craftguides_add_usage_recipe(usage_name, usage_def)
   if self.recipe_usage_type then
-    for _, outputs in pairs(usage_def.outputs) do
-      if (type(outputs)=="table") then
-        outputs = outputs[1];
-      end
-      local item = ItemStack(usage_name):to_string();
-      appliances.register_craft({
-          type = self.recipe_usage_type,
-          output = self.node_name_inactive,
-          items = {item},
-        })
-    end
+    local item = ItemStack(usage_name):to_string();
+    appliances.register_craft({
+        type = self.recipe_usage_type,
+        output = self.node_name_inactive,
+        items = {item},
+      })
   end
 end
 
@@ -254,7 +249,7 @@ function appliance:recipe_register_input(input_name, input_def)
     self:craftguides_add_input_recipe(input_name, input_def)
   else
     local register = true;
-    for index, value in pairs(input_def.inputs) do
+    for index, _ in pairs(input_def.inputs) do
       if ((index < 1) or ( index > self.input_stack_size)) then
         minetest.log("error", "[Appliances]: Input definition is not compatible with size of input stack: "..dump(input_def));
         register = false;
@@ -295,7 +290,7 @@ function appliance:recipe_aviable_input(inventory)
         return nil, nil
       end
     else
-      for index, check in pairs(self.recipes.inputs) do
+      for _, check in pairs(self.recipes.inputs) do
         local valid = true;
         for ch_i, ch_val in pairs(check.inputs) do
           local input_stack = inventory:get_stack(self.input_stack, ch_i);
@@ -358,7 +353,7 @@ function appliance:recipe_aviable_input(inventory)
 end
 
 function appliance:recipe_select_output(timer_step, outputs)
-  local selection = {};
+  local selection;
   if (#outputs>1) then
     selection = outputs[appliances.random:next(1, #outputs)];
   else
@@ -466,7 +461,7 @@ function appliance:recipe_inventory_can_put(pos, listname, index, stack, player_
       local meta = minetest.get_meta(pos);
       local inventory = meta:get_inventory();
       
-      for i, check in pairs(self.recipes.inputs) do
+      for _, check in pairs(self.recipes.inputs) do
         local valid = true;
         for ch_i, ch_val in pairs(check.inputs) do
           local input_stack = inventory:get_stack(self.input_stack, ch_i);
@@ -535,7 +530,7 @@ if minetest.get_modpath("hades_core") then
 end
 
 function appliance:get_formspec(meta, production_percent, consumption_percent)
-  local progress = "";
+  local progress;
   local input_list = "list[context;"..self.input_stack..";2,0.25;1,1;]";
   local use_list = "list[context;"..self.use_stack..";2,1.5;1,1;]";
   local use_listring = "listring[context;"..self.use_stack.."]" ..
@@ -621,13 +616,13 @@ function appliance:stop_sound(pos, stored, sound)
   end
 end
 
--- Inactive/Active 
+-- Inactive/Active
 function appliance:cb_play_sound(pos, meta, old_state, new_state)
   --print(self.node_name_inactive.." sound from "..old_state.." to "..new_state)
   local sound_key = old_state.."_"..new_state;
   local sound = self.sounds[sound_key]
   if not sound then
-    sound_key = new_state..""
+    --sound_key = new_state..""
     sound =  self.sounds[new_state]
   end
   local stored = self:get_soundStore(pos)
@@ -648,7 +643,7 @@ function appliance:cb_play_sound(pos, meta, old_state, new_state)
       
       if (stored.key~=sound.key) then
         self:stop_sound(pos, meta, stored, sound)
-        local param = table.copy(param)
+        param = table.copy(param)
         param.pos = pos;
         stored.handle = minetest.sound_play(sound.sound, param, false)
         stored.key = sound.key
@@ -668,7 +663,7 @@ function appliance:cb_play_sound(pos, meta, old_state, new_state)
         meta:set_int("sound_time", 0)
       end
       if play_sound then
-        local param = table.copy(param);
+        param = table.copy(param);
         param.pos = pos
         minetest.sound_play(sound.sound, param, true);
         
@@ -815,16 +810,29 @@ function appliance:cb_on_punch(pos, node, puncher, pointed_thing)
   self:activate(pos, minetest.get_meta(pos))
 end
 
+local function get_inventory_drops(pos, listname, drops)
+  local meta = minetest.get_meta(pos)
+  local inv = meta:get_inventory()
+  local size = inv:get_size(listname)
+  
+  for i = 1,size do
+    local stack = inv:get_stack(listname, i)
+    if not stack:is_empty() then
+      table.insert(drops, stack)
+    end
+  end
+end
+
 function appliance:cb_on_blast(pos, intensity)
   local drops = {}
   if self.have_input then
-    default.get_inventory_drops(pos, self.input_stack, drops)
+    get_inventory_drops(pos, self.input_stack, drops)
   end
   if self.have_usage then
-    default.get_inventory_drops(pos, self.use_stack, drops)
+    get_inventory_drops(pos, self.use_stack, drops)
   end
   if self.output_stack_size>0 then
-    default.get_inventory_drops(pos, self.output_stack, drops)
+    get_inventory_drops(pos, self.output_stack, drops)
   end
   table.insert(drops, self.node_name_inactive)
   minetest.remove_node(pos)
@@ -913,7 +921,7 @@ function appliance:interrupt_production(timer_step)
   if (self.stoppable_consumption==false) then
     if (timer_step.consumption_time>0) then
       if timer_step.use_usage then
-        local output = self:recipe_select_output(timer_step, timer_step.use_usage.outputs); 
+        local output = self:recipe_select_output(timer_step, timer_step.use_usage.outputs);
         if timer_step.use_usage.losts then
           output = self:recipe_select_output(timer_step, timer_step.use_usage.losts);
         end
@@ -974,7 +982,7 @@ end
     
 function appliance:remove_used_item(timer_step)
   if (timer_step.consumption_time>=timer_step.use_usage.consumption_time) then
-    local output = self:recipe_select_output(timer_step, timer_step.use_usage.outputs); 
+    local output = self:recipe_select_output(timer_step, timer_step.use_usage.outputs);
     if (not self:recipe_room_for_output(timer_step.inv, output)) then
       self:interrupt_production(timer_step);
       self:waiting(timer_step.pos, timer_step.meta);
@@ -993,7 +1001,7 @@ end
 
 function appliance:production_done(timer_step)
   if (timer_step.production_time>=timer_step.use_input.production_time) then
-    local output = self:recipe_select_output(timer_step, timer_step.use_input.outputs); 
+    local output = self:recipe_select_output(timer_step, timer_step.use_input.outputs);
     if (not self:recipe_room_for_output(timer_step.inv, output)) then
       self:waiting(timer_step.pos, timer_step.meta);
       return true;
@@ -1122,7 +1130,7 @@ end
 
 function appliance:cb_on_metadata_inventory_put(pos, listname, index, stack, player)
   local meta = minetest.get_meta(pos)
-  local timer = minetest.get_node_timer(pos)
+  --local timer = minetest.get_node_timer(pos)
   local inv = meta:get_inventory()
   
   -- have aviable production recipe?
@@ -1140,7 +1148,7 @@ function appliance:cb_on_metadata_inventory_take(pos, listname, index, stack, pl
   local inv = meta:get_inventory()
   
   -- have aviable production recipe?
-  local use_input, use_usage = self:recipe_aviable_input(inv)
+  local use_input, _ = self:recipe_aviable_input(inv)
   if use_input then
     self:activate(pos, meta);
     return

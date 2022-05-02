@@ -14,7 +14,7 @@ end
 
 -- no power
 if true then
-  local power_supply = 
+  local power_supply =
     {
       is_powered = function (self, power_supply, pos, meta)
           return 0;
@@ -25,7 +25,7 @@ end
 
 -- time
 if true then
-  local power_supply = 
+  local power_supply =
     {
       hard_help = "time",
       is_powered = function (self, power_supply, pos, meta)
@@ -37,7 +37,7 @@ end
 
 -- punch
 if true then
-  local power_supply = 
+  local power_supply =
     {
       hard_help = "punching",
       is_powered = function (self, power_supply, pos, meta)
@@ -65,7 +65,7 @@ end
 
 -- mesecons
 if appliances.have_mesecons then
-  local power_supply = 
+  local power_supply =
     {
       hard_help = S("active mese"),
       is_powered = function (self, power_supply, pos, meta)
@@ -95,7 +95,7 @@ end
 -- technic
 if appliances.have_technic then
   -- LV
-  local power_supply = 
+  local power_supply =
     {
       units = S("LV EU"),
       is_powered = function (self, power_data, pos, meta)
@@ -147,13 +147,12 @@ if appliances.have_technic then
           technic.register_machine("LV", self.node_name_active, technic.receiver)
         end,
       on_construct = function (self, power_data, pos, meta)
-          local meta = minetest.get_meta(pos);
           meta:set_string("infotext", meta:get_string("technic_info"));
         end,
     };
   appliances.add_power_supply("LV_power", power_supply)
   -- MV
-  local power_supply = 
+  power_supply =
     {
       units = S("MV EU"),
       is_powered = function (self, power_data, pos, meta)
@@ -205,13 +204,12 @@ if appliances.have_technic then
           technic.register_machine("MV", self.node_name_active, technic.receiver)
         end,
       on_construct = function (self, power_data, pos, meta)
-          local meta = minetest.get_meta(pos);
           meta:set_string("infotext", meta:get_string("technic_info"));
         end,
     };
   appliances.add_power_supply("MV_power", power_supply)
   -- HV
-  local power_supply = 
+  power_supply =
     {
       units = S("HV EU"),
       is_powered = function (self, power_data, pos, meta)
@@ -263,7 +261,6 @@ if appliances.have_technic then
           technic.register_machine("HV", self.node_name_active, technic.receiver)
         end,
       on_construct = function (self, power_data, pos, meta)
-          local meta = minetest.get_meta(pos);
           meta:set_string("infotext", meta:get_string("technic_info"));
         end,
     };
@@ -273,12 +270,12 @@ end
 -- elapower
 -- 16 EpU  equvivalent to 200 EU from technic (coal fired generator)
 if minetest.get_modpath("elepower_papi") then
-  local power_supply = 
+  local power_supply =
     {
       units = S("EpU"),
       is_powered = function (self, power_data, pos, meta)
-          local capacity   = ele.helpers.get_node_property(meta, pos, "capacity")
-          local usage   = ele.helpers.get_node_property(meta, pos, "usage")
+          --local capacity   = ele.helpers.get_node_property(meta, pos, "capacity")
+          --local usage   = ele.helpers.get_node_property(meta, pos, "usage")
           local storage   = ele.helpers.get_node_property(meta, pos, "storage")
           local demand = power_data.demand or power_data.get_demand(self, pos, meta)
           if (storage>=demand) then
@@ -327,7 +324,6 @@ if minetest.get_modpath("elepower_papi") then
           --node_def.ela_sides = ???
         end,
       on_construct = function (self, power_data, pos, meta)
-          local meta = minetest.get_meta(pos);
           meta:set_string("storage", 0);
           ele.clear_networks(pos)
         end,
@@ -343,9 +339,8 @@ end
 --
 if minetest.get_modpath("techage") then
   local power = techage.power
-  local networks = techage.networks
-  local Pipe = techage.LiquidPipe
-  local liquid = techage.liquid
+  --local Pipe = techage.LiquidPipe
+  --local liquid = techage.liquid
   
   local side_to_taside = {
     front = "F",
@@ -362,11 +357,11 @@ if minetest.get_modpath("techage") then
     return state=="running"
   end
   
-  local CRD = function(pos) return (minetest.registered_nodes[techage.get_node_lvm(pos).name] or {}).consumer end
-  local CRDN = function(node) return (minetest.registered_nodes[node.name] or {}).consumer end
+  --local CRD = function(pos) return (minetest.registered_nodes[techage.get_node_lvm(pos).name] or {}).consumer end
+  --local CRDN = function(node) return (minetest.registered_nodes[node.name] or {}).consumer end
   
   -- TA2
-  local power_supply = 
+  local power_supply =
     {
       units = S("TA axle"),
       is_powered = function (self, power_data, pos, meta)
@@ -407,13 +402,10 @@ if minetest.get_modpath("techage") then
           end
           techage.Axle:add_secondary_node_names(node_names)
         end,
-      on_construct = function (self, power_data, pos, meta)
-          local meta = minetest.get_meta(pos);
-        end,
       after_place_node = function (self, power_data, pos, placer, itemstack, pointed_thing)
           techage.Axle:after_place_node(pos)
         end,
-      after_dig_node = function (self, power_data, pos, oldnode, oldmnetadata, digger)
+      after_dig_node = function (self, power_data, pos, oldnode, oldmetadata, digger)
           techage.Axle:after_dig_node(pos)
           techage.remove_node(pos, oldnode, oldmetadata)
           techage.del_mem(pos)
@@ -422,7 +414,7 @@ if minetest.get_modpath("techage") then
   appliances.add_power_supply("techage_axle_power", power_supply)
   
   -- TA3 (TE4 ?)
-  local power_supply = 
+  power_supply =
     {
       units = S("ku"),
       is_powered = function (self, power_data, pos, meta)
@@ -463,13 +455,10 @@ if minetest.get_modpath("techage") then
           end
           techage.ElectricCable:add_secondary_node_names(node_names)
         end,
-      on_construct = function (self, power_data, pos, meta)
-          local meta = minetest.get_meta(pos);
-        end,
       after_place_node = function (self, power_data, pos, placer, itemstack, pointed_thing)
           techage.ElectricCable:after_place_node(pos)
         end,
-      after_dig_node = function (self, power_data, pos, oldnode, oldmnetadata, digger)
+      after_dig_node = function (self, power_data, pos, oldnode, oldmetadata, digger)
           techage.ElectricCable:after_dig_node(pos)
           techage.remove_node(pos, oldnode, oldmetadata)
           techage.del_mem(pos)
@@ -481,7 +470,6 @@ end
 -- factory
 -- 16 EU  equvivalent to 200 EU from technic (coal fired generator)
 if minetest.get_modpath("factory") then
-  local device = factory.electronics.device
   
   local function on_push_electricity(pos, energy)
     local meta = minetest.get_meta(pos)
@@ -491,7 +479,7 @@ if minetest.get_modpath("factory") then
     return math.max(energy - (capacity - stored), 0)
   end
   
-  local power_supply = 
+  local power_supply =
     {
       units = S("Factory EU"),
       is_powered = function (self, power_data, pos, meta)
@@ -520,7 +508,6 @@ if minetest.get_modpath("factory") then
           node_def.on_push_electricity = on_push_electricity;
         end,
       on_construct = function (self, power_data, pos, meta)
-          local meta = minetest.get_meta(pos);
           meta:set_string("factory_energy", 0);
           meta:set_string("factory_max_charge", power_data.dev_capacity or 20);
         end,

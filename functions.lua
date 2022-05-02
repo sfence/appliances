@@ -1,5 +1,5 @@
 
-local S = appliances.translator
+--local S = appliances.translator
 
 local use_craftguide = nil;
 if minetest.global_exists("craftguide") then
@@ -13,7 +13,7 @@ end
 -- typicaly between active and inactive appliance
 function appliances.swap_node(pos, name)
   local node = minetest.get_node(pos);
-  if (node.name == name) then 
+  if (node.name == name) then
     return
   end
   node.name = name;

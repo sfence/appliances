@@ -68,7 +68,7 @@ if appliances.have_pipeworks then
         end
       end
       if self.have_usage then
-        local can_insert = self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil); 
+        local can_insert = self:recipe_inventory_can_put(pos, self.use_stack, 1, stack, nil);
         if can_insert~=0 then
           return inv:add_item(self.use_stack, stack);
         end
@@ -81,11 +81,11 @@ if appliances.have_pipeworks then
   end
   -- appliance node callbacks for pipeworks
   function appliance:cb_tube_insert_object(pos, node, stack, direction, owner)
-    local stack = self:tube_insert(pos, node, stack, direction, owner);
+    stack = self:tube_insert(pos, node, stack, direction, owner);
     
     local meta = minetest.get_meta(pos);
     local inv = meta:get_inventory();
-    local use_input, use_usage = self:recipe_aviable_input(inv)
+    local use_input, _ = self:recipe_aviable_input(inv)
     if use_input then
       self:activate(pos, meta);
     end
@@ -95,7 +95,7 @@ if appliances.have_pipeworks then
   function appliance:cb_tube_can_insert(pos, node, stack, direction, owner)
     return self:tube_can_insert(pos, node, stack, direction, owner);
   end
-  local item_supply = 
+  local item_supply =
     {
       update_node_def = function (self, supply_data, node_def)
           node_def.groups.tubedevice = 1;
@@ -108,7 +108,7 @@ if appliances.have_pipeworks then
               can_insert = function(pos, node, stack, direction, owner)
                   return self:cb_tube_can_insert(pos, node, stack, direction, owner);
                 end,
-              connect_sides = {}, 
+              connect_sides = {},
               input_inventory = self.output_stack,
             };
           for _,side in pairs(self.items_connect_sides)do
@@ -132,9 +132,9 @@ if minetest.get_modpath("techage") then
     if self.recipes then
       local meta = minetest.get_meta(pos);
       local inv = meta:get_inventory();
+      local num = stack:get_count()
       
       if self.have_input then
-        local num = stack:get_count()
         if (self.input_stack_size <= 1) then
           local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil);
           if can_insert>=num then
@@ -206,7 +206,7 @@ if minetest.get_modpath("techage") then
   function appliance:cb_on_unpull_item(pos, in_dir, stack)
     return self:on_unpull_item(pos, in_dir, stack)
   end
-  local item_supply = 
+  local item_supply =
     {
       after_register_node = function(self, supply_data)
           local node_names = {
@@ -242,7 +242,6 @@ if minetest.get_modpath("minecart") then
       local inv = meta:get_inventory();
       
       if self.have_input then
-        local num = stack:get_count()
         if (self.input_stack_size <= 1) then
           local can_insert = self:recipe_inventory_can_put(pos, self.input_stack, 1, stack, nil);
           if can_insert>=0 then
@@ -307,7 +306,7 @@ if minetest.get_modpath("minecart") then
   function appliance:cb_on_untakeitem(pos, stack)
     return self:minecart_hopper_untakeitem(pos, stack)
   end
-  local item_supply = 
+  local item_supply =
     {
       update_node_def = function (self, supply_data, node_def)
           node_def.minecart_hopper_additem = function(pos, stack)
