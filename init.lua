@@ -17,5 +17,6 @@ appliances.have_tt = minetest.get_modpath("tt")~=nil;
 
 dofile(modpath.."/functions.lua");
 dofile(modpath.."/appliance.lua");
+dofile(modpath.."/tool.lua");
 dofile(modpath.."/extensions.lua");
 

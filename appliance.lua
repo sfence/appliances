@@ -1104,6 +1104,10 @@ function appliance:cb_on_timer(pos, elapsed)
   return continue_timer;
 end
 
+function appliance:cb_on_receive_fields(pos, formname, fields, sender)
+  self:call_on_receive_fields(pos, formname, fields, sender)
+end
+
 function appliance:cb_allow_metadata_inventory_move(pos, from_list, from_index, to_list, to_index, count, player)
   return 0;
 end
@@ -1237,6 +1241,9 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
     end
   node_def_inactive.on_blast = function (pos, intensity)
       return self:cb_on_blast(pos, intensity);
+    end
+  node_def_inactive.on_receive_fields = function (pos, formname, fields, sender)
+      return self:cb_on_receive_fields(pos, formname, fields, sender);
     end
   node_def_inactive.on_timer = function (pos, elapsed)
       return self:cb_on_timer(pos, elapsed);
@@ -1507,6 +1514,15 @@ function appliance:call_on_blast(pos, intensity)
     local extension = appliances.all_extensions[extension_name]
     if extension and extension.on_blast then
       extension.on_blast(self, extension_data, pos, intensity)
+    end
+  end
+end
+
+function appliance:call_on_receive_fields(pos, formname, fields, sender)
+  for extension_name, extension_data in pairs(self.extensions_data) do
+    local extension = appliances.all_extensions[extension_name]
+    if extension and extension.on_receive_fields then
+      extension.on_receive_fields(self, extension_data, pos, formname, fields, sender)
     end
   end
 end

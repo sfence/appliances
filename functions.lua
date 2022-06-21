@@ -20,6 +20,22 @@ function appliances.swap_node(pos, name)
   minetest.swap_node(pos, node);
 end
 
+function appliances.swap_stack(stack, name)
+  local stack_name = stack:get_name()
+  if (stack_name == name) then
+    return
+  end
+  local meta = stack:get_meta()
+  local meta_table = meta:to_table()
+  local wear = stack:get_wear()
+  stack:set_name(name)
+  if wear>0 then
+    stack:set_wear(wear)
+  end
+  meta = stack:get_meta()
+  meta:from_table(meta_table)
+end
+
 appliances.random = PcgRandom(os.time());
 
 --

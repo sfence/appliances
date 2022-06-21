@@ -11,3 +11,6 @@ dofile(modpath.."/item_supply.lua");
 dofile(modpath.."/supply.lua");
 -- control
 dofile(modpath.."/control.lua");
+-- supply by battery (for tools)
+dofile(modpath.."/battery_supply.lua");
+
