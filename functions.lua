@@ -210,3 +210,18 @@ function appliances.add_item_help(item_name, text_to_add)
   end
 end
 
+function appliances.item_def_with_help(item_def, text_to_add)
+  if appliances.have_tt then
+    local tt_help = item_def._tt_help
+    if not tt_help then
+      tt_help = ""
+    else
+      tt_help = tt_help .. "\n"
+    end
+    item_def._tt_help = tt_help..text_to_add
+  else
+    item_def.description = item_def.description.."\n"..text_to_add
+  end
+  return item_def
+end
+

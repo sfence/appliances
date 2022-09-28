@@ -1282,18 +1282,6 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
   
   node_def_active.groups.not_in_creative_inventory = 1;
   
-  self:call_update_node_inactive_def(node_def_inactive);
-  self:cb_after_update_node_inactive_def(node_def_inactive);
-  self:call_update_node_active_def(node_def_active);
-  self:cb_after_update_node_active_def(node_def_inactive);
-  
-  if node_def_waiting then
-    node_def_waiting.groups.not_in_creative_inventory = 1;
-    
-    self:call_update_node_waiting_def(node_def_waiting);
-    self:cb_after_update_node_waiting_def(node_def_waiting);
-  end
-  
   if inactive_def then
     for key, value in pairs(inactive_def) do
       node_def_inactive[key] = value;
@@ -1308,6 +1296,18 @@ function appliance:register_nodes(shared_def, inactive_def, active_def, waiting_
     for key, value in pairs(waiting_def) do
       node_def_waiting[key] = value;
     end
+  end
+  
+  self:call_update_node_inactive_def(node_def_inactive);
+  self:cb_after_update_node_inactive_def(node_def_inactive);
+  self:call_update_node_active_def(node_def_active);
+  self:cb_after_update_node_active_def(node_def_active);
+  
+  if node_def_waiting then
+    node_def_waiting.groups.not_in_creative_inventory = 1;
+    
+    self:call_update_node_waiting_def(node_def_waiting);
+    self:cb_after_update_node_waiting_def(node_def_waiting);
   end
   
   minetest.register_node(self.node_name_inactive, node_def_inactive);
