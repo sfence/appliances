@@ -524,15 +524,37 @@ function appliance:recipe_inventory_can_take(pos, listname, index, stack, player
 end
 
 -- form spec
-local player_inv = "list[current_player;main;1.5,3;8,4;]";
-if minetest.get_modpath("hades_core") then
-  player_inv = "list[current_player;main;0.5,3;10,4;]";
+if minetest.get_modpath("mcl_formspec") then
+  function appliance:get_formspec_list(inventory_location, list_name, x, y, width, height, offset)
+    offset = offset or "";
+    return "list["..inventory_location..";"..list_name..";"..x..","..y..";"..width..","..height..";"..offset.."]"..
+            mcl_formspec.get_itemslot_bg(x,y,width,height)
+
+  end
+else
+  function appliance:get_formspec_list(inventory_location, list_name, x, y, width, height, offset)
+    offset = offset or "";
+    return "list["..inventory_location..";"..list_name..";"..x..","..y..";"..width..","..height..";"..offset.."]"
+  end
+end
+
+function appliance:get_player_inv()
+  if (not self.player_inv) then
+    if minetest.get_modpath("hades_core") then
+      self.player_inv = self:get_formspec_list("current_player", "main", 0.5, 3, 10, 4);
+    elseif minetest.get_modpath("mcl_core") then
+      self.player_inv = self:get_formspec_list("current_player", "main", 1, 3, 9, 3, 9)..self:get_formspec_list("current_player", "main", 1, 6.25, 9, 1)
+    else
+      self.player_inv = self:get_formspec_list("current_player", "main", 1.5, 3, 8, 4);
+    end
+  end
+  return self.player_inv
 end
 
 function appliance:get_formspec(meta, production_percent, consumption_percent)
   local progress;
-  local input_list = "list[context;"..self.input_stack..";2,0.25;1,1;]";
-  local use_list = "list[context;"..self.use_stack..";2,1.5;1,1;]";
+  local input_list = self:get_formspec_list("context", self.input_stack, 2, 0.25, 1, 1);
+  local use_list = self:get_formspec_list("context", self.use_stack, 2, 1.5, 1, 1);
   local use_listring = "listring[context;"..self.use_stack.."]" ..
                         "listring[current_player;main]";
   
@@ -564,10 +586,10 @@ function appliance:get_formspec(meta, production_percent, consumption_percent)
   end
   
   
-  local formspec =  "formspec_version[3]" .. "size[12.75,8.5]" ..
+  local formspec =  "size[12.75,8.5]" ..
                     "background[-1.25,-1.25;15,10;appliances_appliance_formspec.png]" ..
                     progress..
-                    player_inv ..
+                    self:get_player_inv() ..
                     input_list ..
                     use_list ..
                     "list[context;"..self.output_stack..";9.75,0.25;2,2;]" ..
