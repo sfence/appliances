@@ -580,7 +580,7 @@ function appliance:get_formspec(meta, production_percent, consumption_percent)
               ":appliances_production_progress_bar_full.png^[transformR270]]";
     end
     
-    input_list = "list[context;"..self.input_stack..";2,0.8;1,1;]";
+    input_list = self:get_formspec_list("context", self.input_stack, 2, 0.8, 1, 1);
     use_list = "";
     use_listring = "";
   end
@@ -592,7 +592,7 @@ function appliance:get_formspec(meta, production_percent, consumption_percent)
                     self:get_player_inv() ..
                     input_list ..
                     use_list ..
-                    "list[context;"..self.output_stack..";9.75,0.25;2,2;]" ..
+                    self:get_formspec_list("context", self.output_stack, 9, 0.4, 2, 2)..
                     "listring[current_player;main]" ..
                     "listring[context;"..self.input_stack.."]" ..
                     "listring[current_player;main]" ..
