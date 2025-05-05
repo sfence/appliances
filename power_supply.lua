@@ -338,7 +338,7 @@ end
 -- 80 ku equvivalent to 200 EU from technic (coal-fired generator)
 --
 if minetest.get_modpath("techage") then
-  local power = techage.power
+  local power = networks.power
   --local Pipe = techage.LiquidPipe
   --local liquid = techage.liquid
   
@@ -365,16 +365,11 @@ if minetest.get_modpath("techage") then
     {
       units = S("TA axle"),
       is_powered = function (self, power_data, pos, meta)
-          if power.power_available(pos, techage.Axle) then
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          if power.consume_power(pos, techage.Axle, nil, demand) >= demand then
             return power_data.run_speed;
           end
           return 0
-        end,
-      power_need = function (self, power_data, pos, meta)
-          power.consumer_start(pos, techage.Axle, 1)
-        end,
-      power_idle = function (self, power_data, pos, meta)
-          power.consumer_stop(pos, techage.Axle)
         end,
       update_node_def = function (self, power_data, node_def)
           local network = {
@@ -418,16 +413,11 @@ if minetest.get_modpath("techage") then
     {
       units = S("ku"),
       is_powered = function (self, power_data, pos, meta)
-          if power.power_available(pos, techage.ElectricCable) then
+          local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          if power.consume_power(pos, techage.ElectricCable, nil, demand) >= demand then
             return power_data.run_speed;
           end
           return 0
-        end,
-      power_need = function (self, power_data, pos, meta)
-          power.consumer_start(pos, techage.ElectricCable, 1)
-        end,
-      power_idle = function (self, power_data, pos, meta)
-          power.consumer_stop(pos, techage.ElectricCable)
         end,
       update_node_def = function (self, power_data, node_def)
           local network = {
