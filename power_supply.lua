@@ -366,26 +366,11 @@ if minetest.get_modpath("techage") then
       units = S("TA axle"),
       is_powered = function (self, power_data, pos, meta)
           local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          demand = demand/2
           if power.consume_power(pos, techage.Axle, nil, demand) >= demand then
             return power_data.run_speed;
           end
           return 0
-        end,
-      update_node_def = function (self, power_data, node_def)
-          local network = {
-            sides = {},
-            ntype = "con1",
-            nominal = power_data.demand,
-            --on_power = fuction(pos) end,
-            --on_nopower = function(pos) end,
-            --is_running = function(pos, nvm) return is_running(pos) end,
-					}
-          for _,side in pairs(self.power_connect_sides) do
-            network.sides[side_to_taside[side]] = 1
-          end
-          
-          node_def.networks = node_def.networks or {}
-          node_def.networks.axle = network
         end,
       after_register_node = function(self, power_data)
           local node_names = {
@@ -395,7 +380,11 @@ if minetest.get_modpath("techage") then
           if self.node_name_waiting then
             table.insert(node_names, self.node_name_waiting)
           end
-          techage.Axle:add_secondary_node_names(node_names)
+          local sides = {}
+          for _,side in pairs(self.power_connect_sides) do
+            table.insert(sides, side_to_taside[side])
+          end
+          networks.power.register_nodes(node_names, techage.Axle, "con", sides)
         end,
       after_place_node = function (self, power_data, pos, placer, itemstack, pointed_thing)
           techage.Axle:after_place_node(pos)
@@ -414,26 +403,11 @@ if minetest.get_modpath("techage") then
       units = S("ku"),
       is_powered = function (self, power_data, pos, meta)
           local demand = power_data.demand or power_data.get_demand(self, pos, meta)
+          demand = demand/2
           if power.consume_power(pos, techage.ElectricCable, nil, demand) >= demand then
             return power_data.run_speed;
           end
           return 0
-        end,
-      update_node_def = function (self, power_data, node_def)
-          local network = {
-            sides = {},
-            ntype = "con1",
-            nominal = power_data.demand,
-            --on_power = fuction(pos) end,
-            --on_nopower = function(pos) end,
-            is_running = function(pos, nvm) return is_running(pos) end,
-					}
-          for _,side in pairs(self.power_connect_sides) do
-            network.sides[side_to_taside[side]] = 1
-          end
-          
-          node_def.networks = node_def.networks or {}
-          node_def.networks.ele1 = network
         end,
       after_register_node = function(self, power_data)
           local node_names = {
@@ -443,15 +417,21 @@ if minetest.get_modpath("techage") then
           if self.node_name_waiting then
             table.insert(node_names, self.node_name_waiting)
           end
-          techage.ElectricCable:add_secondary_node_names(node_names)
+          local sides = {}
+          for _,side in pairs(self.power_connect_sides) do
+            table.insert(sides, side_to_taside[side])
+          end
+          networks.power.register_nodes(node_names, techage.ElectricCable, "con", sides)
         end,
       after_place_node = function (self, power_data, pos, placer, itemstack, pointed_thing)
           techage.ElectricCable:after_place_node(pos)
+          techage.add_node(pos, self.node_name_inactive)
+          tubelib2.init_mem(pos)
         end,
       after_dig_node = function (self, power_data, pos, oldnode, oldmetadata, digger)
           techage.ElectricCable:after_dig_node(pos)
           techage.remove_node(pos, oldnode, oldmetadata)
-          techage.del_mem(pos)
+          tubelib2.del_mem(pos)
         end,
     };
   appliances.add_power_supply("techage_electric_power", power_supply)

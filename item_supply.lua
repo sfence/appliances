@@ -216,7 +216,6 @@ if minetest.get_modpath("techage") then
           if self.node_name_waiting then
             table.insert(node_names, self.node_name_waiting)
           end
-          print("register to techage: "..dump(node_names))
           techage.register_node(node_names, {
               on_push_item = function(pos, in_dir, stack)
                 self:cb_on_push_item(pos, in_dir, stack)
